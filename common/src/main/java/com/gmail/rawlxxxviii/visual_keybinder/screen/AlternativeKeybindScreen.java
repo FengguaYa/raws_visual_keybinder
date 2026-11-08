@@ -85,6 +85,7 @@ public class AlternativeKeybindScreen extends Screen {
         super(Component.translatable("raws_visual_keybinder.screen.title"));
         this.parentScreen = parentScreen;
         this.options = options;
+        VisualKeybinder.LOGGER.info("[visual_keybinder] Creating the keybinder screen");
         getKeyboardLayouts();
     }
 
@@ -175,6 +176,7 @@ public class AlternativeKeybindScreen extends Screen {
         if (this.detailsList.getSelectedKey() != null) {
             this.detailsList.setSelectedKey(this.detailsList.getSelectedKey());
         }
+        VisualKeybinder.LOGGER.info("[visual_keybinder] Keybinder screen initialised with {} layouts", keyboardLayouts.size());
     }
 
     public int getLayoutLeft() {
@@ -199,7 +201,11 @@ public class AlternativeKeybindScreen extends Screen {
 
     private void getKeyboardLayouts() {
         this.keyboardLayouts.clear();
-        this.keyboardLayouts.addAll(FileUtil.getKeyboardLayoutsFromFile());
+        try {
+            this.keyboardLayouts.addAll(FileUtil.getKeyboardLayoutsFromFile());
+        } catch (Throwable throwable) {
+            VisualKeybinder.LOGGER.error("[visual_keybinder] Could not read keyboard layouts", throwable);
+        }
     }
 
     public KeyBoardLayout getActiveKeyboardLayout() {

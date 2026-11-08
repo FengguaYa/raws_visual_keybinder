@@ -43,6 +43,7 @@ public final class VisualKeybinder {
 
     public static void init(Path gameDir, Path configDir) {
         VisualKeybinder.gameDir = gameDir;
+        LOGGER.info("[visual_keybinder] Initialising client, game dir = {}", gameDir);
         ClientConfig.load(configDir);
     }
 
@@ -90,7 +91,7 @@ public final class VisualKeybinder {
             opened = true;
         }
         if (opened) {
-            minecraft.setScreen(new AlternativeKeybindScreen(minecraft.screen, minecraft.options));
+            openScreen(minecraft.screen);
         }
 
         for (int i = 0; i < PRESET_KEYS.length; i++) {
@@ -150,7 +151,7 @@ public final class VisualKeybinder {
     public static Button createMenuButton(Screen parent) {
         return Button.builder(
                         Component.literal("VK"),
-                        button -> Minecraft.getInstance().setScreen(new AlternativeKeybindScreen(parent, Minecraft.getInstance().options))
+                        button -> openScreen(parent)
                 )
                 .bounds(
                         parent.width / 2 + 150 + 10 + ClientConfig.menuButtonOffsetX,
@@ -159,6 +160,15 @@ public final class VisualKeybinder {
                 )
                 .tooltip(Tooltip.create(Component.literal("Visual Keybinder")))
                 .build();
+    }
+
+    public static void openScreen(Screen parent) {
+        try {
+            LOGGER.info("[visual_keybinder] Opening the Visual Keybinder screen");
+            Minecraft.getInstance().setScreen(new AlternativeKeybindScreen(parent, Minecraft.getInstance().options));
+        } catch (Throwable throwable) {
+            LOGGER.error("[visual_keybinder] Could not open the Visual Keybinder screen", throwable);
+        }
     }
 
     public static InputConstants.Key parseKey(String value) {
