@@ -9,7 +9,7 @@ version = "${project.mod_version}-neoforge"
 group = project.mod_group_id
 
 base {
-    archivesName = "${project.mod_id}-neoforge"
+    archivesName = "${project.mod_id}"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)

@@ -7,7 +7,7 @@ version = "${project.mod_version}-fabric"
 group = project.mod_group_id
 
 base {
-    archivesName = "${project.mod_id}-fabric"
+    archivesName = "${project.mod_id}"
 }
 
 repositories {
