@@ -7,6 +7,8 @@ import com.gmail.rawlxxxviii.visual_keybinder.util.FileUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -19,7 +21,7 @@ public class PresetList extends ScrollList {
 
     private final PresetsScreen screen;
     private final Options options;
-    private final List<KeybindingPreset> presets = new ArrayList<>();
+    private final List<Row> rows = new ArrayList<>();
 
     public PresetList(PresetsScreen screen, Options options, int x, int y, int width, int height) {
         super(x, y, width, height);
@@ -30,85 +32,94 @@ public class PresetList extends ScrollList {
     }
 
     public void rebuild() {
-        presets.clear();
-        List<KeybindingPreset> loaded = FileUtil.getPresets();
-        if (loaded != null) {
-            presets.addAll(loaded);
+        rows.clear();
+        List<KeybindingPreset> presets = FileUtil.getPresets();
+        if (presets != null) {
+            for (KeybindingPreset preset : presets) {
+                rows.add(new Row(preset, screen.isPresetActive(preset)));
+            }
         }
         this.scrollAmount = Math.max(0, Math.min(maxScroll(), this.scrollAmount));
     }
 
     @Override
     protected int rowCount() {
-        return presets.size();
+        return rows.size();
     }
 
     private int saveButtonX() {
         return getX() + this.width - (BUTTON_WIDTH * 3 + GAP * 2) - 8;
     }
 
-    private int loadButtonX() {
-        return saveButtonX() + BUTTON_WIDTH + GAP;
-    }
-
-    private int deleteButtonX() {
-        return loadButtonX() + BUTTON_WIDTH + GAP;
-    }
-
     @Override
     protected void renderRow(GuiGraphicsExtractor graphics, int index, int rowTop, int mouseX, int mouseY, float partialTick) {
-        KeybindingPreset preset = presets.get(index);
+        Row row = rows.get(index);
         var font = Minecraft.getInstance().font;
-        boolean active = screen.isPresetActive(preset);
 
-        graphics.text(font, Component.literal(preset.getName()),
+        graphics.text(font, Component.literal(row.preset.getName()),
                 getX() + 8, rowTop + 8,
-                active ? AlternativeKeybindScreen.ACTIVE_COLOR : 0xFFE0E0E0, false);
+                row.active ? AlternativeKeybindScreen.ACTIVE_COLOR : 0xFFE0E0E0, false);
 
-        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.save"), saveButtonX(), rowTop,
-                BUTTON_WIDTH, isInside(mouseX, mouseY, saveButtonX(), rowTop),
-                preset.isReadOnly() ? 0xFF808080 : AlternativeKeybindScreen.RESET_COLOR);
-        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.load"), loadButtonX(), rowTop,
-                BUTTON_WIDTH, isInside(mouseX, mouseY, loadButtonX(), rowTop),
-                active ? 0xFF808080 : 0xFFFFFFFF);
-        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.delete"), deleteButtonX(), rowTop,
-                BUTTON_WIDTH, isInside(mouseX, mouseY, deleteButtonX(), rowTop),
-                preset.isReadOnly() ? 0xFF808080 : AlternativeKeybindScreen.DANGER_COLOR);
-    }
+        row.saveButton.setX(saveButtonX());
+        row.saveButton.setY(rowTop + 2);
+        row.saveButton.setWidth(BUTTON_WIDTH);
+        row.saveButton.active = !row.preset.isReadOnly();
+        row.saveButton.setMessage(KeyBindingList.colored(Component.translatable("raws_visual_keybinder.presets.save"),
+                row.preset.isReadOnly() ? 0x808080 : AlternativeKeybindScreen.RESET_COLOR));
+        row.saveButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
-    private void drawButton(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font, Component label,
-                            int x, int y, int width, boolean hovered, int color) {
-        int background = hovered ? 0xFF565656 : 0xFF3A3A3A;
-        graphics.fill(x, y + 3, x + width, y + 21, background);
-        graphics.outline(x, y + 3, width, 18, hovered ? 0xFFBFBFBF : 0xFF666666);
-        graphics.centeredText(font, label, x + width / 2, y + 9, color);
-    }
+        row.loadButton.setX(saveButtonX() + BUTTON_WIDTH + GAP);
+        row.loadButton.setY(rowTop + 2);
+        row.loadButton.setWidth(BUTTON_WIDTH);
+        row.loadButton.active = !row.active;
+        row.loadButton.setMessage(KeyBindingList.colored(Component.translatable("raws_visual_keybinder.presets.load"),
+                row.active ? 0x808080 : 0xFFFFFF));
+        row.loadButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
-    private boolean isInside(double mouseX, double mouseY, int x, int y) {
-        return mouseX >= x && mouseX < x + BUTTON_WIDTH && mouseY >= y && mouseY < y + 24;
+        row.deleteButton.setX(saveButtonX() + (BUTTON_WIDTH + GAP) * 2);
+        row.deleteButton.setY(rowTop + 2);
+        row.deleteButton.setWidth(BUTTON_WIDTH);
+        row.deleteButton.active = !row.preset.isReadOnly();
+        row.deleteButton.setMessage(KeyBindingList.colored(Component.translatable("raws_visual_keybinder.presets.delete"),
+                row.preset.isReadOnly() ? 0x808080 : AlternativeKeybindScreen.DANGER_COLOR));
+        row.deleteButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
-    protected boolean clickRow(int index, double mouseX, double mouseY, int button) {
-        KeybindingPreset preset = presets.get(index);
-        int rowTop = getY() + index * rowHeight - (int) scrollAmount;
-
-        if (isInside(mouseX, mouseY, saveButtonX(), rowTop)) {
-            if (!preset.isReadOnly()) {
-                screen.savePreset(preset.getName());
-            }
+    protected boolean clickRow(int index, MouseButtonEvent event) {
+        Row row = rows.get(index);
+        if (row.saveButton.mouseClicked(event, false)) {
             return true;
         }
-        if (isInside(mouseX, mouseY, loadButtonX(), rowTop)) {
-            screen.loadPreset(preset.getName());
+        if (row.loadButton.mouseClicked(event, false)) {
             return true;
         }
-        if (isInside(mouseX, mouseY, deleteButtonX(), rowTop)) {
-            if (!preset.isReadOnly()) {
-                screen.deletePreset(preset.getName());
-            }
+        if (row.deleteButton.mouseClicked(event, false)) {
             return true;
         }
         return false;
+    }
+
+    private final class Row {
+        private final KeybindingPreset preset;
+        private final boolean active;
+        private final Button saveButton;
+        private final Button loadButton;
+        private final Button deleteButton;
+
+        private Row(KeybindingPreset preset, boolean active) {
+            this.preset = preset;
+            this.active = active;
+
+            this.saveButton = Button.builder(Component.empty(), button -> screen.savePreset(preset.getName()))
+                    .bounds(0, 0, BUTTON_WIDTH, 20)
+                    .build();
+            this.loadButton = Button.builder(Component.empty(), button -> screen.loadPreset(preset.getName()))
+                    .bounds(0, 0, BUTTON_WIDTH, 20)
+                    .build();
+            this.deleteButton = Button.builder(Component.empty(), button -> screen.deletePreset(preset.getName()))
+                    .bounds(0, 0, BUTTON_WIDTH, 20)
+                    .build();
+        }
     }
 }

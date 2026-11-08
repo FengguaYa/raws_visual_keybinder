@@ -25,7 +25,7 @@ public abstract class ScrollList extends AbstractWidget {
     protected abstract void renderRow(GuiGraphicsExtractor graphics, int index, int rowTop,
                                       int mouseX, int mouseY, float partialTick);
 
-    protected abstract boolean clickRow(int index, double mouseX, double mouseY, int button);
+    protected abstract boolean clickRow(int index, MouseButtonEvent event);
 
     protected double maxScroll() {
         return Math.max(0, rowCount() * (double) rowHeight - this.height);
@@ -37,7 +37,7 @@ public abstract class ScrollList extends AbstractWidget {
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(getX(), getY(), getX() + this.width, getY() + this.height, 0x66000000);
+        graphics.fill(getX(), getY(), getX() + this.width, getY() + this.height, 0x80000000);
 
         graphics.enableScissor(getX(), getY(), getX() + this.width, getY() + this.height);
         int first = Math.max(0, (int) (scrollAmount / rowHeight));
@@ -57,8 +57,8 @@ public abstract class ScrollList extends AbstractWidget {
         if (max > 0) {
             int barHeight = Math.max(12, (int) (this.height * (double) this.height / (rowCount() * (double) rowHeight)));
             int barY = getY() + (int) ((this.height - barHeight) * (scrollAmount / max));
-            int barX = getX() + this.width - 4;
-            graphics.fill(barX, barY, barX + 3, barY + barHeight, 0x99FFFFFF);
+            int barX = getX() + this.width - 6;
+            graphics.fill(barX, barY, barX + 4, barY + barHeight, 0xFFC0C0C0);
         }
     }
 
@@ -74,7 +74,7 @@ public abstract class ScrollList extends AbstractWidget {
         if (index < 0 || index >= rowCount()) {
             return false;
         }
-        return clickRow(index, event.x(), event.y(), event.button());
+        return clickRow(index, event);
     }
 
     @Override
