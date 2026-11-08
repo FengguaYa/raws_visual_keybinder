@@ -1,0 +1,79 @@
+name: API Probe
+
+on:
+  push:
+    branches: [26.1.2-multiloader]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Download Minecraft client jar
+        run: |
+          set -e
+          python3 - <<'EOF'
+          import json, urllib.request
+          manifest = json.load(urllib.request.urlopen('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'))
+          version = [v for v in manifest['versions'] if v['id'] == '26.1.2'][0]
+          data = json.load(urllib.request.urlopen(version['url']))
+          url = data['downloads']['client']['url']
+          print('client jar:', url)
+          urllib.request.urlretrieve(url, 'client.jar')
+          EOF
+      - name: Dump signatures
+        run: |
+          set -e
+          rm -rf mc && mkdir mc && cd mc && unzip -q ../client.jar && cd ..
+          mkdir -p probe-out
+          {
+            echo "=== gui classes ==="
+            find mc/net/minecraft/client/gui -name '*.class' | sed 's#mc/##; s#/#.#g; s#\.class$##' | sort
+          } > probe-out/classes-gui.txt
+          {
+            echo "=== resource / chat ==="
+            find mc/net/minecraft/resources mc/net/minecraft/network/chat -maxdepth 1 -name '*.class' | sed 's#mc/##; s#/#.#g; s#\.class$##' | sort
+          } > probe-out/classes-resource.txt
+          CP=mc
+          for c in \
+            net.minecraft.client.gui.GuiGraphicsExtractor \
+            net.minecraft.client.gui.GuiGraphics \
+            net.minecraft.client.gui.screens.Screen \
+            net.minecraft.client.gui.screens.options.OptionsSubScreen \
+            net.minecraft.client.gui.screens.options.controls.ControlsScreen \
+            net.minecraft.client.gui.components.AbstractWidget \
+            net.minecraft.client.gui.components.Button \
+            net.minecraft.client.gui.components.Button\$Builder \
+            net.minecraft.client.gui.components.ImageButton \
+            net.minecraft.client.gui.components.EditBox \
+            net.minecraft.client.gui.components.AbstractSelectionList \
+            net.minecraft.client.gui.components.ObjectSelectionList \
+            net.minecraft.client.gui.components.ContainerObjectSelectionList \
+            net.minecraft.client.gui.components.AbstractSelectionList\$Entry \
+            net.minecraft.client.gui.Font \
+            net.minecraft.client.KeyMapping \
+            net.minecraft.client.Options \
+            net.minecraft.client.Minecraft \
+            net.minecraft.client.gui.components.WidgetSprites \
+            net.minecraft.network.chat.Component \
+            net.minecraft.resources.ResourceLocation ; do
+            echo "===== $c =====" 
+            javap -p -classpath "$CP" "$c" 2>/dev/null || echo "(missing)"
+          done > probe-out/api.txt
+          wc -l probe-out/*.txt
+      - name: Commit probe results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B api-probe
+          git add probe-out
+          git commit -m "API probe for 26.1.2"
+          git push -f origin api-probe

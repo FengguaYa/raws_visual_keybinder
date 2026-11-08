@@ -25,3 +25,7 @@ run
 forge*changelog.txt
 
 mcmodsrepo
+# DSH diagnostics
+.acl-diagnostics
+probe-out
+
