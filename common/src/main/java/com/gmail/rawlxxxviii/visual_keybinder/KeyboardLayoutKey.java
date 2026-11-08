@@ -2,7 +2,7 @@ package com.gmail.rawlxxxviii.visual_keybinder;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 public class KeyboardLayoutKey {

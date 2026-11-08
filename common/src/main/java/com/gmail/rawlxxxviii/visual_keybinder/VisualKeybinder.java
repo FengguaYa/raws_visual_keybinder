@@ -140,7 +140,7 @@ public final class VisualKeybinder {
     private static void displayClientMessage(Component message) {
         var player = Minecraft.getInstance().player;
         if (player != null) {
-            player.displayClientMessage(message, true);
+            player.sendOverlayMessage(message);
         }
     }
 
