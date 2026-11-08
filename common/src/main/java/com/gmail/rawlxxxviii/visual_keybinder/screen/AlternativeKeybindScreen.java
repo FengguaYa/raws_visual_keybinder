@@ -6,6 +6,7 @@ import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
 import com.gmail.rawlxxxviii.visual_keybinder.VisualKeybinder;
 import com.gmail.rawlxxxviii.visual_keybinder.config.ClientConfig;
 import com.gmail.rawlxxxviii.visual_keybinder.util.FileUtil;
+import com.gmail.rawlxxxviii.visual_keybinder.util.MalilibSupport;
 import com.gmail.rawlxxxviii.visual_keybinder.widget.KeyBindingList;
 import com.gmail.rawlxxxviii.visual_keybinder.widget.KeyButton;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -80,6 +81,7 @@ public class AlternativeKeybindScreen extends Screen {
     private int allListHeight = 30;
 
     private KeyMapping keyMappingToChange;
+    private MalilibSupport.Hotkey malilibToChange;
 
     public AlternativeKeybindScreen(Screen parentScreen, Options options) {
         super(Component.translatable("raws_visual_keybinder.screen.title"));
@@ -270,12 +272,24 @@ public class AlternativeKeybindScreen extends Screen {
 
     public void beginEditing(KeyMapping keyMapping) {
         this.keyMappingToChange = keyMapping;
+        this.malilibToChange = null;
+        this.detailsList.rebuild();
+        this.allBindingsList.rebuild();
+    }
+
+    public void beginEditingMalilib(MalilibSupport.Hotkey hotkey) {
+        this.malilibToChange = hotkey;
+        this.keyMappingToChange = null;
         this.detailsList.rebuild();
         this.allBindingsList.rebuild();
     }
 
     public KeyMapping getKeyMappingToChange() {
         return keyMappingToChange;
+    }
+
+    public MalilibSupport.Hotkey getMalilibToChange() {
+        return malilibToChange;
     }
 
     public void setKeyMappingToChange(KeyMapping keyMappingToChange) {
@@ -304,6 +318,12 @@ public class AlternativeKeybindScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (this.malilibToChange != null) {
+            this.malilibToChange.applyKey(event.key() == 256 ? -1 : event.key());
+            this.malilibToChange = null;
+            onBindingsChanged();
+            return true;
+        }
         if (this.keyMappingToChange != null) {
             if (event.key() == 256) {
                 // Same as the original mod: ESC unbinds the key instead of only
@@ -323,6 +343,11 @@ public class AlternativeKeybindScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (this.malilibToChange != null) {
+            this.malilibToChange = null;
+            onBindingsChanged();
+            return true;
+        }
         if (this.keyMappingToChange != null) {
             this.keyMappingToChange.setKey(InputConstants.Type.MOUSE.getOrCreate(event.button()));
             this.keyMappingToChange = null;
@@ -347,7 +372,7 @@ public class AlternativeKeybindScreen extends Screen {
 
         graphics.centeredText(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
 
-        if (ClientConfig.displayLayoutButtonTooltips && this.keyMappingToChange == null) {
+        if (ClientConfig.displayLayoutButtonTooltips && this.keyMappingToChange == null && this.malilibToChange == null) {
             for (KeyButton keyButton : keyButtons) {
                 if (keyButton.isMouseOver(mouseX, mouseY)) {
                     List<Component> tooltip = new ArrayList<>();
@@ -368,7 +393,7 @@ public class AlternativeKeybindScreen extends Screen {
             }
         }
 
-        if (this.keyMappingToChange != null) {
+        if (this.keyMappingToChange != null || this.malilibToChange != null) {
             Component hint = Component.translatable("raws_visual_keybinder.screen.editing_hint");
             String text = hint.getString();
             int textWidth = this.font.width(text);

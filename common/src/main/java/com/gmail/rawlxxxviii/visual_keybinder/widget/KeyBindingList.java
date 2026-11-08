@@ -3,7 +3,7 @@ package com.gmail.rawlxxxviii.visual_keybinder.widget;
 import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
 import com.gmail.rawlxxxviii.visual_keybinder.screen.AlternativeKeybindScreen;
 import com.gmail.rawlxxxviii.visual_keybinder.util.KeyUtil;
-import net.minecraft.ChatFormatting;
+import com.gmail.rawlxxxviii.visual_keybinder.util.MalilibSupport;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -24,8 +24,11 @@ public class KeyBindingList extends ScrollList {
     public static final int MODE_ALL = 0;
     public static final int MODE_DETAIL = 1;
 
-    private static final int EDIT_WIDTH = 110;
-    private static final int RESET_WIDTH = 80;
+    private static final int KIND_TEXT = 0;
+    private static final int KIND_HEADER = 1;
+    private static final int KIND_NAME = 2;
+    private static final int KIND_BUTTONS = 3;
+
     private static final int BUTTON_GAP = 4;
 
     private final AlternativeKeybindScreen screen;
@@ -82,8 +85,7 @@ public class KeyBindingList extends ScrollList {
     private void buildAllRows(KeyMapping[] all) {
         String lastCategory = null;
         for (KeyMapping keyMapping : all) {
-            Component category = keyMapping.getCategory().label();
-            String categoryName = category.getString();
+            String categoryName = keyMapping.getCategory().label().getString();
 
             if (!categoryFilter.isEmpty() && !matches(categoryName, categoryFilter)) {
                 continue;
@@ -93,10 +95,30 @@ public class KeyBindingList extends ScrollList {
             }
             if (!categoryName.equals(lastCategory)) {
                 lastCategory = categoryName;
-                rows.add(Row.text(category, AlternativeKeybindScreen.CATEGORY_COLOR));
+                rows.add(Row.text(keyMapping.getCategory().label(), AlternativeKeybindScreen.CATEGORY_COLOR));
             }
-            rows.add(Row.binding(keyMapping, this));
+            addBindingRows(keyMapping);
         }
+
+        // MaLiLib keybinds are not vanilla KeyMappings, show them in their own categories.
+        for (MalilibSupport.Category category : MalilibSupport.getCategories()) {
+            String categoryName = category.getModName() + " / " + category.getCategoryName();
+            if (!categoryFilter.isEmpty() && !matches(categoryName, categoryFilter)) {
+                continue;
+            }
+            boolean addedHeader = false;
+            for (MalilibSupport.Hotkey hotkey : category.getHotkeys()) {
+                if (!nameFilter.isEmpty() && !matches(hotkey.getName(), nameFilter)) {
+                    continue;
+                }
+                if (!addedHeader) {
+                    addedHeader = true;
+                    rows.add(Row.text(Component.literal(categoryName), AlternativeKeybindScreen.CATEGORY_COLOR));
+                }
+                addMalilibRows(hotkey);
+            }
+        }
+
         if (rows.isEmpty()) {
             rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_results"), 0xFF9A9A9A));
         }
@@ -114,33 +136,68 @@ public class KeyBindingList extends ScrollList {
         }
 
         KeyMapping[] keyMappings = screen.getKeyMappings(selectedKey);
-        if (keyMappings.length == 0) {
-            rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_bindings"), 0xFF9A9A9A));
-            return;
-        }
-
+        boolean hasBinding = false;
         String lastCategory = null;
         for (KeyMapping keyMapping : keyMappings) {
-            Component category = keyMapping.getCategory().label();
-            String categoryName = category.getString();
+            hasBinding = true;
+            String categoryName = keyMapping.getCategory().label().getString();
             if (!categoryName.equals(lastCategory)) {
                 lastCategory = categoryName;
-                rows.add(Row.text(category, AlternativeKeybindScreen.CATEGORY_COLOR));
+                rows.add(Row.text(keyMapping.getCategory().label(), AlternativeKeybindScreen.CATEGORY_COLOR));
             }
-            rows.add(Row.binding(keyMapping, this));
+            addBindingRows(keyMapping);
         }
+
+        int glfwKey = selectedKey.getKey().getValue();
+        boolean addedMalilibHeader = false;
+        for (MalilibSupport.Category category : MalilibSupport.getCategories()) {
+            for (MalilibSupport.Hotkey hotkey : category.getHotkeys()) {
+                if (!hotkey.getKeyCodes().contains(glfwKey)) {
+                    continue;
+                }
+                hasBinding = true;
+                if (!addedMalilibHeader) {
+                    addedMalilibHeader = true;
+                    rows.add(Row.text(Component.literal(category.getModName() + " / " + category.getCategoryName()),
+                            AlternativeKeybindScreen.CATEGORY_COLOR));
+                }
+                addMalilibRows(hotkey);
+            }
+        }
+
+        if (!hasBinding) {
+            rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_bindings"), 0xFF9A9A9A));
+        }
+    }
+
+    private void addBindingRows(KeyMapping keyMapping) {
+        rows.add(Row.name(keyMapping));
+        rows.add(Row.buttons(keyMapping, this));
+    }
+
+    private void addMalilibRows(MalilibSupport.Hotkey hotkey) {
+        rows.add(Row.malilibName(hotkey));
+        rows.add(Row.malilibButtons(hotkey, this));
     }
 
     private boolean matches(String value, String filter) {
         return value.toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT));
     }
 
-    private int editButtonX() {
-        return getX() + this.width - EDIT_WIDTH - RESET_WIDTH - BUTTON_GAP - 8;
+    private int editWidth() {
+        return Math.max(60, Math.min(170, (int) (this.width * 0.45f) - 6));
     }
 
-    private int resetButtonX() {
-        return editButtonX() + EDIT_WIDTH + BUTTON_GAP;
+    private int editX() {
+        return getX() + 6;
+    }
+
+    private int resetX() {
+        return editX() + editWidth() + BUTTON_GAP;
+    }
+
+    private int resetWidth() {
+        return Math.max(50, Math.min(130, (int) (this.width * 0.35f)));
     }
 
     static Component colored(Component text, int argb) {
@@ -158,56 +215,90 @@ public class KeyBindingList extends ScrollList {
         var font = Minecraft.getInstance().font;
         int left = getX() + 6;
 
-        if (row.header) {
-            graphics.fill(getX(), rowTop, getX() + this.width, rowTop + rowHeight,
-                    AlternativeKeybindScreen.LIST_TITLE_BACKGROUND_COLOR);
-            String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
-            graphics.text(font, text, left, rowTop + 6, 0xFFFFFFFF, false);
-            return;
+        switch (row.kind) {
+            case KIND_HEADER -> {
+                graphics.fill(getX(), rowTop, getX() + this.width, rowTop + rowHeight,
+                        AlternativeKeybindScreen.LIST_TITLE_BACKGROUND_COLOR);
+                String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
+                graphics.text(font, text, left, rowTop + 6, 0xFFFFFFFF, false);
+            }
+            case KIND_TEXT -> {
+                String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
+                graphics.text(font, text, left, rowTop + 6, row.color, false);
+            }
+            case KIND_NAME -> {
+                if (row.mapping != null) {
+                    KeyMapping keyMapping = row.mapping;
+                    if (KeyUtil.hasConflict(options.keyMappings, keyMapping)) {
+                        renderName(graphics, font, Component.translatable(keyMapping.getName()).getString(),
+                                left, rowTop, AlternativeKeybindScreen.CONFLICT_COLOR);
+                    } else {
+                        renderName(graphics, font, Component.translatable(keyMapping.getName()).getString(),
+                                left, rowTop, 0xFFE0E0E0);
+                    }
+                } else if (row.hotkey != null) {
+                    renderName(graphics, font, row.hotkey.getName(), left, rowTop, 0xFFE0E0E0);
+                }
+            }
+            case KIND_BUTTONS -> renderButtons(graphics, row, rowTop, mouseX, mouseY, partialTick);
+            default -> {
+            }
         }
+    }
 
-        if (row.mapping == null) {
-            String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
-            graphics.text(font, text, left, rowTop + 6, row.color, false);
-            return;
-        }
+    private void renderName(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font,
+                            String text, int left, int rowTop, int color) {
+        graphics.text(font, font.plainSubstrByWidth(text, Math.max(20, this.width - 12)),
+                left, rowTop + 6, color, false);
+    }
 
-        KeyMapping keyMapping = row.mapping;
-        boolean conflicting = KeyUtil.hasConflict(options.keyMappings, keyMapping);
-        int nameColor = conflicting ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFE0E0E0;
-
-        int editX = editButtonX();
-        int resetX = resetButtonX();
-
-        int nameWidth = Math.max(20, editX - left - 6);
-        String name = font.plainSubstrByWidth(Component.translatable(keyMapping.getName()).getString(), nameWidth);
-        graphics.text(font, name, left, rowTop + 6, nameColor, false);
-
+    private void renderButtons(GuiGraphicsExtractor graphics, Row row, int rowTop, int mouseX, int mouseY, float partialTick) {
         Button changeButton = row.changeButton;
-        changeButton.setX(editX);
+        Button resetButton = row.resetButton;
+        if (changeButton == null || resetButton == null) {
+            return;
+        }
+
+        if (row.mapping != null) {
+            KeyMapping keyMapping = row.mapping;
+            boolean conflicting = KeyUtil.hasConflict(options.keyMappings, keyMapping);
+            changeButton.setMessage(colored(
+                    screen.getKeyMappingToChange() == keyMapping
+                            ? Component.literal("> ... <")
+                            : keyMapping.getTranslatedKeyMessage(),
+                    conflicting ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFFFFF));
+            resetButton.active = !keyMapping.isDefault();
+            resetButton.setMessage(colored(
+                    Component.literal("(").append(keyMapping.getDefaultKey().getDisplayName().getString()).append(")"),
+                    keyMapping.isDefault() ? 0x808080 : AlternativeKeybindScreen.RESET_COLOR));
+        } else if (row.hotkey != null) {
+            MalilibSupport.Hotkey hotkey = row.hotkey;
+            changeButton.setMessage(colored(
+                    screen.getMalilibToChange() == hotkey
+                            ? Component.literal("> ... <")
+                            : Component.literal(hotkey.getDisplayString()),
+                    hotkey.isUnbound() ? AlternativeKeybindScreen.UNBOUND_COLOR : 0xFFFFFF));
+            resetButton.active = true;
+            resetButton.setMessage(colored(Component.literal("(default)"), 0x808080));
+        }
+
+        changeButton.setX(editX());
         changeButton.setY(rowTop);
-        changeButton.setWidth(EDIT_WIDTH);
-        changeButton.setMessage(colored(
-                screen.getKeyMappingToChange() == keyMapping
-                        ? Component.literal("> ... <")
-                        : keyMapping.getTranslatedKeyMessage(),
-                conflicting ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFFFFF));
+        changeButton.setWidth(editWidth());
         changeButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
-        Button resetButton = row.resetButton;
-        resetButton.setX(resetX);
+        resetButton.setX(resetX());
         resetButton.setY(rowTop);
-        resetButton.setWidth(RESET_WIDTH);
-        resetButton.active = !keyMapping.isDefault();
-        resetButton.setMessage(colored(
-                Component.literal("(").append(keyMapping.getDefaultKey().getDisplayName().getString()).append(")"),
-                keyMapping.isDefault() ? 0x808080 : AlternativeKeybindScreen.RESET_COLOR));
+        resetButton.setWidth(resetWidth());
         resetButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     protected boolean clickRow(int index, MouseButtonEvent event) {
         Row row = rows.get(index);
+        if (row.kind != KIND_BUTTONS) {
+            return false;
+        }
         if (row.changeButton != null && row.changeButton.mouseClicked(event, false)) {
             return true;
         }
@@ -218,50 +309,71 @@ public class KeyBindingList extends ScrollList {
     }
 
     private static final class Row {
+        private final int kind;
         private final Component label;
-        private final KeyMapping mapping;
         private final int color;
-        private final boolean header;
+        private final KeyMapping mapping;
+        private final MalilibSupport.Hotkey hotkey;
         private final Button changeButton;
         private final Button resetButton;
 
-        private Row(Component label, KeyMapping mapping, int color, boolean header,
+        private Row(int kind, Component label, int color, KeyMapping mapping, MalilibSupport.Hotkey hotkey,
                     Button changeButton, Button resetButton) {
+            this.kind = kind;
             this.label = label;
-            this.mapping = mapping;
             this.color = color;
-            this.header = header;
+            this.mapping = mapping;
+            this.hotkey = hotkey;
             this.changeButton = changeButton;
             this.resetButton = resetButton;
         }
 
         static Row text(Component label, int color) {
-            return new Row(label, null, color, false, null, null);
+            return new Row(KIND_TEXT, label, color, null, null, null, null);
         }
 
         static Row header(Component label) {
-            return new Row(label, null, 0xFFFFFFFF, true, null, null);
+            return new Row(KIND_HEADER, label, 0xFFFFFFFF, null, null, null, null);
         }
 
-        static Row binding(KeyMapping mapping, KeyBindingList list) {
-            Button changeButton = Button.builder(
-                            Component.empty(),
-                            button -> list.screen.beginEditing(mapping))
-                    .bounds(0, 0, EDIT_WIDTH, 20)
+        static Row name(KeyMapping mapping) {
+            return new Row(KIND_NAME, null, 0xFFFFFFFF, mapping, null, null, null);
+        }
+
+        static Row malilibName(MalilibSupport.Hotkey hotkey) {
+            return new Row(KIND_NAME, null, 0xFFFFFFFF, null, hotkey, null, null);
+        }
+
+        static Row buttons(KeyMapping mapping, KeyBindingList list) {
+            Button changeButton = Button.builder(Component.empty(), button -> list.screen.beginEditing(mapping))
+                    .bounds(0, 0, 100, 20)
                     .build();
 
-            Button resetButton = Button.builder(
-                            Component.literal("(").append(mapping.getDefaultKey().getDisplayName().getString()).append(")"),
-                            button -> {
-                                mapping.setKey(mapping.getDefaultKey());
-                                list.options.save();
-                                KeyMapping.resetMapping();
-                                list.screen.onBindingsChanged();
-                            })
-                    .bounds(0, 0, RESET_WIDTH, 20)
+            Button resetButton = Button.builder(Component.empty(), button -> {
+                        mapping.setKey(mapping.getDefaultKey());
+                        list.options.save();
+                        KeyMapping.resetMapping();
+                        list.screen.onBindingsChanged();
+                    })
+                    .bounds(0, 0, 80, 20)
                     .build();
 
-            return new Row(null, mapping, 0xFFFFFFFF, false, changeButton, resetButton);
+            return new Row(KIND_BUTTONS, null, 0xFFFFFFFF, mapping, null, changeButton, resetButton);
+        }
+
+        static Row malilibButtons(MalilibSupport.Hotkey hotkey, KeyBindingList list) {
+            Button changeButton = Button.builder(Component.empty(), button -> list.screen.beginEditingMalilib(hotkey))
+                    .bounds(0, 0, 100, 20)
+                    .build();
+
+            Button resetButton = Button.builder(Component.empty(), button -> {
+                        hotkey.reset();
+                        list.screen.onBindingsChanged();
+                    })
+                    .bounds(0, 0, 80, 20)
+                    .build();
+
+            return new Row(KIND_BUTTONS, null, 0xFFFFFFFF, null, hotkey, changeButton, resetButton);
         }
     }
 }
