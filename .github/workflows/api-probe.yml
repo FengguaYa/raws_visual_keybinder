@@ -1,8 +1,6 @@
 name: API Probe
 
 on:
-  push:
-    branches: [26.1.2-multiloader]
   workflow_dispatch:
 
 permissions:
