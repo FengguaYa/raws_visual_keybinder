@@ -1,65 +1,84 @@
 package com.gmail.rawlxxxviii.visual_keybinder.config;
 
-import com.gmail.rawlxxxviii.visual_keybinder.KeyBoardLayout;
-import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
-import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import com.gmail.rawlxxxviii.visual_keybinder.VisualKeybinder;
 
-import java.util.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Properties;
 
-public class ClientConfig {
-    public static final ModConfigSpec GENERAL_SPEC;
+/**
+ * Small, loader independent client configuration. Values are stored in
+ * {@code config/visual_keybinder-client.properties} and are read once during mod
+ * initialisation.
+ */
+public final class ClientConfig {
 
-    public static ModConfigSpec.IntValue menuButtonOffsetX;
-    public static ModConfigSpec.IntValue menuButtonOffsetY;
-    public static ModConfigSpec.BooleanValue displayConflictContext;
-    public static ModConfigSpec.BooleanValue displayLayoutButtonTooltips;
-    public static ModConfigSpec.BooleanValue displayChangeAndResetButtonTooltips;
+    private static final String FILE_NAME = "visual_keybinder-client.properties";
 
+    public static int menuButtonOffsetX = 0;
+    public static int menuButtonOffsetY = 0;
+    public static boolean displayConflictContext = false;
+    public static boolean displayLayoutButtonTooltips = true;
+    public static boolean displayChangeAndResetButtonTooltips = true;
 
-    static {
-        ModConfigSpec.Builder configBuilder = new ModConfigSpec.Builder();
-        setupConfig(configBuilder);
-        GENERAL_SPEC = configBuilder.build();
+    private static Path file;
+
+    private ClientConfig() {
     }
 
-    private static void setupConfig(ModConfigSpec.Builder builder) {
+    public static void load(Path configDir) {
+        try {
+            Files.createDirectories(configDir);
+            file = configDir.resolve(FILE_NAME);
+            if (Files.isRegularFile(file)) {
+                Properties properties = new Properties();
+                try (InputStream in = Files.newInputStream(file)) {
+                    properties.load(in);
+                }
+                menuButtonOffsetX = parseInt(properties, "menu_button_offset_x", 0);
+                menuButtonOffsetY = parseInt(properties, "menu_button_offset_y", 0);
+                displayConflictContext = parseBoolean(properties, "display_conflict_context", false);
+                displayLayoutButtonTooltips = parseBoolean(properties, "display_layout_button_tooltip", true);
+                displayChangeAndResetButtonTooltips = parseBoolean(properties, "display_button_tooltip", true);
+            } else {
+                save();
+            }
+        } catch (Exception exception) {
+            VisualKeybinder.LOGGER.warn("Could not load Visual Keybinder client config", exception);
+        }
+    }
 
+    public static void save() {
+        if (file == null) {
+            return;
+        }
+        try {
+            Properties properties = new Properties();
+            properties.setProperty("menu_button_offset_x", Integer.toString(menuButtonOffsetX));
+            properties.setProperty("menu_button_offset_y", Integer.toString(menuButtonOffsetY));
+            properties.setProperty("display_conflict_context", Boolean.toString(displayConflictContext));
+            properties.setProperty("display_layout_button_tooltip", Boolean.toString(displayLayoutButtonTooltips));
+            properties.setProperty("display_button_tooltip", Boolean.toString(displayChangeAndResetButtonTooltips));
+            try (OutputStream out = Files.newOutputStream(file)) {
+                properties.store(out, "Raw's Visual Keybinder client settings");
+            }
+        } catch (IOException exception) {
+            VisualKeybinder.LOGGER.warn("Could not save Visual Keybinder client config", exception);
+        }
+    }
 
-        builder.push("Layouts");
-        builder.comment("The layout files are found in the minecraft folder /visual keybinder/layouts");
-        builder.comment("The name of the file should be [number].[name].layout.txt");
-        builder.comment("If all the layouts are deleted, the default will generate on startup");
-        builder.comment("Layout file line format:");
-        builder.comment("for a small button: [keyName];[xPosition];[yPosition];");
-        builder.comment("for a wide button:  [keyName];[xPosition];[yPosition];wide");
+    private static int parseInt(Properties properties, String key, int fallback) {
+        try {
+            return Integer.parseInt(properties.getProperty(key, Integer.toString(fallback)).trim());
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
 
-        builder.pop();
-
-        builder.push("Preferences");
-        displayConflictContext = builder
-                .comment("Display whether a binding is for GUI, in game or both.")
-                .define( "display_conflict_context", false)
-        ;
-        displayLayoutButtonTooltips = builder
-                .comment("Should a tooltip be displayed when the mouse is over a button.")
-                .define( "display_layout_button_tooltip", true)
-        ;
-        displayChangeAndResetButtonTooltips = builder
-                .comment("Should a tooltip be displayed for the change and reset button.")
-                .define( "display_button_tooltip", true)
-        ;
-
-        menuButtonOffsetX = builder
-                .comment("Reposition the menu button horizontally.")
-                .defineInRange( "menu_button_offset_x", 0,-10000,10000)
-        ;
-        menuButtonOffsetY = builder
-                .comment("Reposition the menu button vertically.")
-                .defineInRange( "menu_button_offset_y", 0,-10000,10000)
-        ;
-
-        builder.pop();
-
+    private static boolean parseBoolean(Properties properties, String key, boolean fallback) {
+        return Boolean.parseBoolean(properties.getProperty(key, Boolean.toString(fallback)).trim());
     }
 }

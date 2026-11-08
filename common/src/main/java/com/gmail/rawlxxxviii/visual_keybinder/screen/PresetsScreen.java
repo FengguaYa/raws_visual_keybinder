@@ -1,39 +1,34 @@
 package com.gmail.rawlxxxviii.visual_keybinder.screen;
 
-import com.gmail.rawlxxxviii.visual_keybinder.ui_list.KeyPresetOptionsList;
 import com.gmail.rawlxxxviii.visual_keybinder.KeybindingPreset;
 import com.gmail.rawlxxxviii.visual_keybinder.util.FileUtil;
-import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Options;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.client.settings.KeyModifier;
 
-import javax.annotation.Nullable;
-import java.awt.*;
+import java.io.IOException;
 
-public class PresetsScreen extends OptionsSubScreen {
+public class PresetsScreen extends Screen {
 
+    private final Screen parentScreen;
+    private final Options options;
 
     private EditBox newPresetNameEditBox;
-    private Button saveNewPresetButton;
+    private PresetList presetList;
 
-    private com.gmail.rawlxxxviii.visual_keybinder.ui_list.KeyPresetOptionsList KeyPresetOptionsList;
-
-    public PresetsScreen(Screen screen, Options options) {
-        super(screen, options, Component.literal("Keybinding presets"));
+    public PresetsScreen(Screen parentScreen, Options options) {
+        super(Component.literal("Keybinding presets"));
+        this.parentScreen = parentScreen;
+        this.options = options;
     }
 
     @Override
-    protected void renderBlurredBackground(float partialTick) {
+    protected void extractBlurredBackground(GuiGraphicsExtractor graphics) {
     }
 
     @Override
@@ -43,215 +38,124 @@ public class PresetsScreen extends OptionsSubScreen {
 
     @Override
     protected void init() {
-
-        int uiWidth = 400;
-        int uiLeft = width / 2 - uiWidth / 2;
-        int uiRight = uiLeft + width;
+        int uiWidth = Math.min(400, this.width - 20);
+        int uiLeft = this.width / 2 - uiWidth / 2;
         int uiTop = 40;
         int bottomPadding = 50;
-        int uiHeight = height - uiTop - bottomPadding;
-        int uiBottom = uiTop + uiHeight;
+        int uiHeight = this.height - uiTop - bottomPadding;
 
-        addRenderableWidget(
-                new Button.Builder(CommonComponents.GUI_DONE,
-                        (button) -> onClose()
-                )
-                .pos(width / 2 - 75,this.height - 25)
-                .size(150, 20)
-                .build()
-        );
-
-
-        newPresetNameEditBox = addWidget(
-                new EditBox(
-                        font,
-                        uiLeft + 1,
-                        uiTop,
-                        uiWidth - 100 - 10,
-                        20,
-                        Component.literal("new preset name")
-                )
-        );
-
-        saveNewPresetButton = addRenderableWidget(
-                new Button.Builder(
-                        Component.literal("Save preset"),
-                        (button) -> savePreset(newPresetNameEditBox.getValue())
-                )
-                .pos(newPresetNameEditBox.getX() + newPresetNameEditBox.getWidth() + 10, uiTop)
-                .size(100, 20)
-                .build()
-        );
-
-
-
-        KeyPresetOptionsList = addWidget(new KeyPresetOptionsList(
-                this,
-                minecraft,
-                options,
-                uiLeft,
-                uiTop + 30,
-                uiWidth,
-                uiHeight - 30
+        this.newPresetNameEditBox = addRenderableWidget(new EditBox(
+                this.font,
+                uiLeft + 1,
+                uiTop,
+                Math.max(40, uiWidth - 110),
+                20,
+                Component.literal("new preset name")
         ));
+        this.newPresetNameEditBox.setHint(Component.literal("Preset name"));
 
+        addRenderableWidget(Button.builder(Component.literal("Save preset"), button -> savePreset(newPresetNameEditBox.getValue()))
+                .bounds(uiLeft + uiWidth - 100, uiTop, 100, 20)
+                .build());
+
+        this.presetList = addRenderableWidget(new PresetList(this, options, uiLeft, uiTop + 30, uiWidth, uiHeight - 30));
+
+        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
+                .bounds(this.width / 2 - 75, this.height - 26, 150, 20)
+                .build());
+
+        addRenderableWidget(Button.builder(Component.literal("Unbind all"), button -> unbindAll())
+                .bounds(uiLeft, this.height - 26, 100, 20)
+                .build());
+
+        addRenderableWidget(Button.builder(Component.literal("Reset all"), button -> resetAll())
+                .bounds(uiLeft + 105, this.height - 26, 100, 20)
+                .build());
     }
 
     @Override
-    protected void addOptions() {
-
+    public void onClose() {
+        this.minecraft.setScreen(this.parentScreen);
     }
 
-    public void savePreset(String name){
-
+    public void savePreset(String name) {
         name = FileUtil.sanitizeString(name);
-
-        if(name.isBlank()){
+        if (name.isBlank()) {
             return;
         }
-
         try {
             FileUtil.savePreset(options, name);
-        }catch (Exception ex) {
-            throw new RuntimeException(ex);
+        } catch (Exception exception) {
+            throw new RuntimeException(exception);
         }
-
-        rebuildWidgets();
+        this.presetList.rebuild();
     }
 
-    public void deletePreset(String name){
-
+    public void deletePreset(String name) {
         try {
             FileUtil.deletePreset(name);
-        }catch (Exception ex) {
-            throw new RuntimeException(ex);
+        } catch (Exception exception) {
+            throw new RuntimeException(exception);
         }
-
-        rebuildWidgets();
+        this.presetList.rebuild();
     }
 
-    public void loadPreset(String name){
-
+    public void loadPreset(String name) {
         try {
             FileUtil.loadPreset(options, name);
-        }catch (Exception ex) {
-            throw new RuntimeException(ex);
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
         }
-
-        rebuildWidgets();
+        this.presetList.rebuild();
     }
 
-    public void unbindAll(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            keymapping.setKeyModifierAndCode(KeyModifier.NONE,InputConstants.UNKNOWN);
-            this.options.setKey(keymapping, InputConstants.UNKNOWN);
+    public void unbindAll() {
+        for (KeyMapping keyMapping : this.options.keyMappings) {
+            keyMapping.setKey(com.mojang.blaze3d.platform.InputConstants.UNKNOWN);
         }
         options.save();
         KeyMapping.resetMapping();
-        rebuildWidgets();
+        this.presetList.rebuild();
     }
 
-    public void resetAll(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            keymapping.setToDefault();
-            options.setKey(keymapping, keymapping.getDefaultKey());
+    public void resetAll() {
+        for (KeyMapping keyMapping : this.options.keyMappings) {
+            keyMapping.setKey(keyMapping.getDefaultKey());
         }
         options.save();
         KeyMapping.resetMapping();
-        rebuildWidgets();
+        this.presetList.rebuild();
     }
 
-    @Override
-    public void setFocused(@Nullable GuiEventListener p_94677_) {
-        var currentFocused = getFocused();
-        if(currentFocused instanceof EditBox editBox && !currentFocused.equals(p_94677_)){
-            editBox.setFocused(false);
-        }
-        super.setFocused(p_94677_);
-    }
-
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float p_193994_) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, p_193994_);
-
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 16, 16777215);
-
-        saveNewPresetButton.render(guiGraphics, mouseX, mouseY, p_193994_);
-        newPresetNameEditBox.render(guiGraphics, mouseX, mouseY, p_193994_);
-
-        if(this.newPresetNameEditBox.getValue().isEmpty()){
-            guiGraphics.drawString(
-                    font,
-                    Component.literal("Preset name"),
-                    newPresetNameEditBox.getX() + 4,
-                    newPresetNameEditBox.getY() + 6,
-                    Color.darkGray.getRGB()
-            );
-        }
-
-        KeyPresetOptionsList.render(guiGraphics, mouseX, mouseY, p_193994_);
-
-        super.render(guiGraphics, mouseX, mouseY, p_193994_);
-    }
-
-    public boolean isPresetActive(KeybindingPreset keybindingPreset){
-
-        if(options.keyMappings.length != keybindingPreset.getLines().size()){
+    public boolean isPresetActive(KeybindingPreset preset) {
+        if (preset.getLines().size() != options.keyMappings.length) {
             return false;
         }
-
-        for(var keymapping : options.keyMappings){
-
-            KeyModifier presetKeyModifier = KeyModifier.NONE;
-
-            String mappingName = keymapping.getName();
-
-            var presetItem = keybindingPreset.getLines().stream().filter(x -> x.startsWith(mappingName + ":")).toList().stream().findFirst().orElse(null);
-            if(presetItem == null){
-                return false;
+        int matched = 0;
+        for (KeyMapping keyMapping : options.keyMappings) {
+            String mappingName = keyMapping.getName();
+            String line = preset.getLines().stream()
+                    .filter(x -> x.startsWith(mappingName + ":"))
+                    .findFirst()
+                    .orElse(null);
+            if (line == null) {
+                continue;
             }
-            var split = presetItem.split(":");
-            if(split.length < 2){
-                return false;
+            String value = line.substring(mappingName.length() + 1);
+            int colon = value.indexOf(':');
+            if (colon != -1) {
+                value = value.substring(0, colon);
             }
-
-            InputConstants.Key presetKey = InputConstants.getKey(split[1]);
-
-            if(split.length == 3){
-                presetKeyModifier = KeyModifier.valueFromString(split[2]);
-            }
-
-            if(
-                    !presetKey.equals(keymapping.getKey())
-                            ||
-                            presetKeyModifier != keymapping.getKeyModifier()
-            ){
-                return false;
-            }
-
-
-        }
-        return true;
-
-
-    }
-
-    public boolean hasNonDefaultBindings(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            if (!keymapping.isDefault()) {
-                return  true;
+            if (value.equals(keyMapping.saveString())) {
+                matched++;
             }
         }
-        return false;
+        return matched == options.keyMappings.length;
     }
 
-    public boolean hasBoundBindings(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            if (!keymapping.isUnbound()) {
-                return  true;
-            }
-        }
-        return false;
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFFFFFFF);
     }
-
 }

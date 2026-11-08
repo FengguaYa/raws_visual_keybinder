@@ -2,27 +2,26 @@ package com.gmail.rawlxxxviii.visual_keybinder;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 public class FilterEditBox extends EditBox {
-    public FilterEditBox(Font p_94114_, int p_94115_, int p_94116_, int p_94117_, int p_94118_, Component p_94119_) {
-        super(p_94114_, p_94115_, p_94116_, p_94117_, p_94118_, p_94119_);
+
+    public FilterEditBox(Font font, int x, int y, int width, int height, Component message) {
+        super(font, x, y, width, height, message);
     }
 
-
     @Override
-    public boolean mouseClicked(double p_94125_, double p_94126_, int p_94127_) {
-
-        if(p_94127_ == 0){
-            return super.mouseClicked(p_94125_, p_94126_, p_94127_);
-        } else if (p_94127_ == 1) {
-            if(p_94125_ >= (double)getX() && p_94125_ < (double)(getX() + width) && p_94126_ >= (double)getY() && p_94126_ < (double)(getY() + height)){
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0) {
+            return super.mouseClicked(event, doubleClick);
+        } else if (event.button() == 1) {
+            if (event.x() >= (double) getX() && event.x() < (double) (getX() + width)
+                    && event.y() >= (double) getY() && event.y() < (double) (getY() + height)) {
                 setValue("");
                 return true;
             }
         }
-
         return false;
     }
-
 }

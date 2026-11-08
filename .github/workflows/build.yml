@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [26.1.2-multiloader]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.0'
+      - name: Build both loaders
+        run: gradle :fabric:build :neoforge:build --stacktrace --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-keybinder-26.1.x
+          path: |
+            fabric/build/libs/*.jar
+            neoforge/build/libs/*.jar

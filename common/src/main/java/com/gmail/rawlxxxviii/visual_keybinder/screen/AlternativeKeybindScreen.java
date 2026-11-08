@@ -1,61 +1,44 @@
 package com.gmail.rawlxxxviii.visual_keybinder.screen;
 
-import com.gmail.rawlxxxviii.visual_keybinder.*;
+import com.gmail.rawlxxxviii.visual_keybinder.FilterEditBox;
+import com.gmail.rawlxxxviii.visual_keybinder.KeyBoardLayout;
+import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
+import com.gmail.rawlxxxviii.visual_keybinder.VisualKeybinder;
 import com.gmail.rawlxxxviii.visual_keybinder.config.ClientConfig;
-import com.gmail.rawlxxxviii.visual_keybinder.ui_list.DefaultKeyBindsList;
-import com.gmail.rawlxxxviii.visual_keybinder.ui_list.KeyDetailsList;
 import com.gmail.rawlxxxviii.visual_keybinder.util.FileUtil;
-import com.gmail.rawlxxxviii.visual_keybinder.util.KeyUtil;
+import com.gmail.rawlxxxviii.visual_keybinder.widget.KeyBindingList;
+import com.gmail.rawlxxxviii.visual_keybinder.widget.KeyButton;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.client.settings.KeyModifier;
-import org.apache.commons.lang3.ArrayUtils;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class AlternativeKeybindScreen extends OptionsSubScreen {
+public class AlternativeKeybindScreen extends Screen {
 
-    public static final int CATEGORY_COLOR =
-            new Color(143, 178, 236).getRGB();
-    public static final int ACTIVE_COLOR = new Color(31, 176, 255).getRGB();
-    public static final int DANGER_COLOR = new Color(230, 96, 96).getRGB();
-    public static final int CONFLICT_COLOR = new Color(243, 164, 39).getRGB();
-    public static final int RESET_COLOR = new Color(161, 200, 123).getRGB();
-    public static final int UNBOUND_COLOR = new Color(142, 149, 154).getRGB();
-    public static final int LIST_TITLE_BACKGROUND_COLOR = new Color(0, 0, 0, 158).getRGB();
+    public static final int CATEGORY_COLOR = 0xFF8FB2EC;
+    public static final int ACTIVE_COLOR = 0xFF1FB0FF;
+    public static final int DANGER_COLOR = 0xFFE66060;
+    public static final int CONFLICT_COLOR = 0xFFF3A427;
+    public static final int RESET_COLOR = 0xFFA1C87B;
+    public static final int UNBOUND_COLOR = 0xFF8E959A;
+    public static final int LIST_TITLE_BACKGROUND_COLOR = 0x9E000000;
 
     public static final int KEY_BUTTON_WIDTH = 16;
     public static final int WIDE_KEY_BUTTON_WIDTH = 60;
     public static final int KEY_BUTTON_HEIGHT = 16;
-
-    private DefaultKeyBindsList defaultKeyBindsList;
-
-
-    private Button rotateLayoutButton;
-
-    private EditBox keyMappingNameFilterEditBox;
-    private EditBox keyMappingCategoryFilterEditBox;
-
-    private List<KeyBoardLayout> keyboardLayouts = new ArrayList<>();
-    private KeyBoardLayout activeKeyboardLayout;
-    private int activeKeyboardLayoutIndex = 0;
-    private List<KeyButton> keyButtons = new ArrayList<>();
 
     private static final int PAGE_PADDING_TOP = 30;
     private static final int FILTERS_HEIGHT = 25;
@@ -65,11 +48,21 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
     private static final int PAGE_MID_GAP_HORIZONTAL = 5;
     private static final int PAGE_MID_GAP_VERTICAL = 10;
 
+    private final Screen parentScreen;
+    private final Options options;
 
-    private int defaultListWidth = 30;
-    private int defaultListHeight = 30;
-    private int defaultListTop = 30;
-    private int defaultListLeft = 30;
+    private KeyBindingList allBindingsList;
+    private KeyBindingList detailsList;
+
+    private EditBox keyMappingNameFilterEditBox;
+    private EditBox keyMappingCategoryFilterEditBox;
+
+    private final List<KeyBoardLayout> keyboardLayouts = new ArrayList<>();
+    private KeyBoardLayout activeKeyboardLayout;
+    private int activeKeyboardLayoutIndex = 0;
+    private final List<KeyButton> keyButtons = new ArrayList<>();
+
+    private Button rotateLayoutButton;
 
     private int layoutTop = 30;
     private int layoutLeft = 30;
@@ -81,20 +74,27 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
     private int detailsListWidth = 30;
     private int detailsListHeight = 30;
 
-    private KeyDetailsList detailsList;
+    private int allListTop = 30;
+    private int allListLeft = 30;
+    private int allListWidth = 30;
+    private int allListHeight = 30;
 
     private KeyMapping keyMappingToChange;
 
-
-    public AlternativeKeybindScreen(Screen screen, Options options) {
-        super(screen, options, Component.literal("Visual keybinder"));
-
+    public AlternativeKeybindScreen(Screen parentScreen, Options options) {
+        super(Component.literal("Visual Keybinder"));
+        this.parentScreen = parentScreen;
+        this.options = options;
         getKeyboardLayouts();
     }
 
+    public Options getOptions() {
+        return options;
+    }
+
     @Override
-    protected void renderBlurredBackground(float partialTick) {
-        // Leave this completely empty to stop the 1.21.1 background blur!
+    protected void extractBlurredBackground(GuiGraphicsExtractor graphics) {
+        // Keep the vanilla world visible, do not blur the background.
     }
 
     @Override
@@ -104,109 +104,78 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
 
     @Override
     protected void init() {
+        int top = PAGE_PADDING_TOP;
+        int bottomBar = PAGE_PADDING_BOTTOM;
+        int availableHeight = this.height - top - bottomBar - PAGE_MID_GAP_VERTICAL;
 
-        layoutHeight = (int)((height - PAGE_PADDING_TOP - PAGE_PADDING_BOTTOM - PAGE_MID_GAP_VERTICAL) * 0.45);
-        detailsListHeight = (height - layoutHeight - PAGE_PADDING_TOP - PAGE_PADDING_BOTTOM - PAGE_MID_GAP_VERTICAL);
-        defaultListHeight = detailsListHeight - FILTERS_HEIGHT;
+        int upperHeight = (int) (availableHeight * 0.58);
+        detailsListHeight = upperHeight;
+        layoutHeight = availableHeight - upperHeight;
 
-        layoutTop = PAGE_PADDING_TOP + detailsListHeight + PAGE_MID_GAP_VERTICAL;
-        defaultListTop = PAGE_PADDING_TOP + FILTERS_HEIGHT;
-        detailsListTop = PAGE_PADDING_TOP;
+        detailsListTop = top;
+        detailsListLeft = PAGE_PADDING_LEFT;
+        detailsListWidth = (int) (this.width * 0.45 - PAGE_PADDING_LEFT - PAGE_PADDING_RIGHT);
 
-
-        detailsListWidth = (int)(width * 0.45  - PAGE_PADDING_LEFT - PAGE_PADDING_RIGHT);
-        defaultListWidth = width - detailsListWidth - PAGE_PADDING_LEFT - PAGE_PADDING_RIGHT - PAGE_MID_GAP_HORIZONTAL;
+        allListLeft = detailsListLeft + detailsListWidth + PAGE_MID_GAP_HORIZONTAL;
+        allListWidth = this.width - allListLeft - PAGE_PADDING_RIGHT;
 
         layoutLeft = PAGE_PADDING_LEFT;
-        layoutWidth = width - PAGE_PADDING_RIGHT - layoutLeft;
-        detailsListLeft = PAGE_PADDING_LEFT;
-        defaultListLeft = detailsListLeft + detailsListWidth + PAGE_MID_GAP_HORIZONTAL;
+        layoutWidth = this.width - PAGE_PADDING_RIGHT - layoutLeft;
+        layoutTop = detailsListTop + upperHeight + PAGE_MID_GAP_VERTICAL;
 
+        allListTop = top + FILTERS_HEIGHT;
+        allListHeight = upperHeight - FILTERS_HEIGHT;
 
-        this.defaultKeyBindsList = addWidget(new DefaultKeyBindsList(
-                this, this.minecraft,
-                options,
-                defaultListLeft,
-                defaultListTop,
-                defaultListWidth,
-                defaultListHeight
+        this.detailsList = addRenderableWidget(new KeyBindingList(this, options, KeyBindingList.MODE_DETAIL,
+                detailsListLeft, detailsListTop, detailsListWidth, detailsListHeight));
+
+        this.allBindingsList = addRenderableWidget(new KeyBindingList(this, options, KeyBindingList.MODE_ALL,
+                allListLeft, allListTop, allListWidth, allListHeight));
+
+        this.keyMappingNameFilterEditBox = addRenderableWidget(new FilterEditBox(
+                this.font,
+                allListLeft,
+                top,
+                Math.max(40, allListWidth / 2 - 5),
+                20,
+                Component.literal("Name filter")
         ));
+        this.keyMappingNameFilterEditBox.setHint(Component.literal("Filter name"));
 
+        this.keyMappingCategoryFilterEditBox = addRenderableWidget(new FilterEditBox(
+                this.font,
+                allListLeft + allListWidth / 2,
+                top,
+                Math.max(40, allListWidth / 2),
+                20,
+                Component.literal("Category filter")
+        ));
+        this.keyMappingCategoryFilterEditBox.setHint(Component.literal("Filter category"));
 
-        this.setActiveKeyboardLayout(activeKeyboardLayoutIndex);
+        this.keyMappingNameFilterEditBox.setResponder(allBindingsList::setNameFilter);
+        this.keyMappingCategoryFilterEditBox.setResponder(allBindingsList::setCategoryFilter);
+        this.keyMappingCategoryFilterEditBox.setTextColor(CATEGORY_COLOR);
 
+        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
+                .bounds(this.width / 2 - 75, this.height - 26, 150, 20)
+                .build());
 
+        addRenderableWidget(Button.builder(Component.literal("Presets").withStyle(ChatFormatting.WHITE),
+                        button -> this.minecraft.setScreen(new PresetsScreen(this, options)))
+                .bounds(5, this.height - 26, 100, 20)
+                .build());
 
-        addRenderableWidget(
-                new Button.Builder(
-                    CommonComponents.GUI_DONE,
-                    (button) -> this.minecraft.setScreen(this.lastScreen)
-                )
-                .pos(width / 2 - 50, height - 25)
-                .size(100, 20)
-                .build()
-        );
+        this.rotateLayoutButton = addRenderableWidget(Button.builder(Component.empty(),
+                        button -> setActiveKeyboardLayout(getActiveKeyboardLayoutIndex() + 1))
+                .bounds(this.width - 205, this.height - 26, 200, 20)
+                .build());
 
-        addRenderableWidget(
-                new Button.Builder(
-                    Component.literal("Presets").withStyle(ChatFormatting.WHITE),
-                    (button) -> Minecraft.getInstance().setScreen(new PresetsScreen(this, options))
-                )
-                .pos(5, height - 25)
-                .size(70, 20)
-                .build()
-        );
+        setActiveKeyboardLayout(activeKeyboardLayoutIndex);
 
-
-
-        rotateLayoutButton = addRenderableWidget(
-                new Button.Builder(
-                        Component.empty(),
-                        (button) -> setActiveKeyboardLayout(getActiveKeyboardLayoutIndex()+1)
-                )
-                        .pos(width - 155, height - 25)
-                        .size(150, 20)
-                        .build()
-        );
-
-        if(detailsList != null){
-            setDetailsList(detailsList.getSelectedKey());
+        if (this.detailsList.getSelectedKey() != null) {
+            this.detailsList.setSelectedKey(this.detailsList.getSelectedKey());
         }
-
-        keyMappingNameFilterEditBox = addWidget(
-                new FilterEditBox(
-                        font,
-                        defaultListLeft,
-                        defaultListTop - FILTERS_HEIGHT,
-                        (defaultListWidth / 2) - 5,
-                        20,
-                        Component.literal("Name filter")
-                )
-        );
-
-        keyMappingCategoryFilterEditBox = addWidget(
-                new FilterEditBox(
-                        font,
-                        defaultListLeft + (defaultListWidth / 2),
-                        defaultListTop - FILTERS_HEIGHT,
-                        defaultListWidth / 2,
-                        20,
-                        Component.literal("Category filter")
-                )
-        );
-        keyMappingCategoryFilterEditBox.setTextColor(CATEGORY_COLOR);
-
-
-        keyMappingCategoryFilterEditBox.setResponder(defaultKeyBindsList::setCategoryFilter);
-        keyMappingNameFilterEditBox.setResponder(defaultKeyBindsList::setKeyMappingFilter);
-
     }
-
-    @Override
-    protected void addOptions() {
-
-    }
-
 
     public int getLayoutLeft() {
         return layoutLeft;
@@ -228,12 +197,9 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
         return activeKeyboardLayoutIndex;
     }
 
-    private void getKeyboardLayouts(){
-
+    private void getKeyboardLayouts() {
         this.keyboardLayouts.clear();
-        this.keyboardLayouts.addAll(
-                FileUtil.getKeyboardLayoutsFromFile()
-        );
+        this.keyboardLayouts.addAll(FileUtil.getKeyboardLayoutsFromFile());
     }
 
     public KeyBoardLayout getActiveKeyboardLayout() {
@@ -241,92 +207,65 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
     }
 
     public void setActiveKeyboardLayout(int index) {
-        if(keyboardLayouts.isEmpty()){
+        if (keyboardLayouts.isEmpty()) {
             this.activeKeyboardLayout = null;
-            activeKeyboardLayoutIndex = index;
+            this.activeKeyboardLayoutIndex = index;
+            updateRotateButtonMessage();
             return;
         }
-        if(index >= keyboardLayouts.size()){
+        if (index >= keyboardLayouts.size()) {
             index = 0;
         } else if (index < 0) {
             index = keyboardLayouts.size() - 1;
         }
-        activeKeyboardLayout = keyboardLayouts.get(index);
-        activeKeyboardLayoutIndex = index;
+        this.activeKeyboardLayout = keyboardLayouts.get(index);
+        this.activeKeyboardLayoutIndex = index;
         createLayoutButtons(this.activeKeyboardLayout);
-
+        updateRotateButtonMessage();
     }
 
-
-    @Override
-    public boolean keyPressed(int p_193987_, int p_193988_, int p_193989_) {
-        if (this.keyMappingToChange != null &&
-                !net.neoforged.neoforge.client.settings.KeyModifier.isKeyCodeModifier(
-                        InputConstants.getKey(p_193987_,p_193988_)
-                )
-        ) {
-            if (p_193987_ == 256) {
-                this.keyMappingToChange.setKeyModifierAndCode(KeyModifier.NONE, InputConstants.UNKNOWN);
-                this.options.setKey(this.keyMappingToChange, InputConstants.UNKNOWN);
-            } else {
-                this.keyMappingToChange.setKeyModifierAndCode(KeyUtil.getActiveKeyModifier(), InputConstants.getKey(p_193987_, p_193988_));
-                this.options.setKey(this.keyMappingToChange, InputConstants.getKey(p_193987_, p_193988_));
-            }
-
-            this.keyMappingToChange = null;
-
-            KeyMapping.resetMapping();
-            onBindingsChanged();
-            return true;
+    private void updateRotateButtonMessage() {
+        if (this.rotateLayoutButton == null) {
+            return;
+        }
+        if (activeKeyboardLayout == null) {
+            this.rotateLayoutButton.setMessage(Component.literal(keyboardLayouts.isEmpty() ? "No layouts.." : "Select layout"));
         } else {
-            try {
-                // seems to cause NullPointerException on tabbing when last item
-                return super.keyPressed(p_193987_, p_193988_, p_193989_);
-            }catch (Exception ex){
-                return false;
-            }
+            this.rotateLayoutButton.setMessage(Component.literal(activeKeyboardLayout.getName().getString())
+                    .append(" " + (getActiveKeyboardLayoutIndex() + 1) + "/" + keyboardLayouts.size()));
         }
     }
 
-    @Override
-    public boolean keyReleased(int p_193987_, int p_193988_, int p_193989_) {
-        var pressedKey = InputConstants.getKey(p_193987_,p_193988_);
-        if (this.keyMappingToChange != null &&
-                net.neoforged.neoforge.client.settings.KeyModifier.isKeyCodeModifier(pressedKey)
-        ) {
-            this.keyMappingToChange.setKeyModifierAndCode(KeyModifier.NONE, InputConstants.getKey(p_193987_, p_193988_));
-            options.setKey(this.keyMappingToChange, pressedKey);
-            this.keyMappingToChange = null;
-            KeyMapping.resetMapping();
+    private void createLayoutButtons(KeyBoardLayout keyboardLayout) {
+        keyButtons.forEach(this::removeWidget);
+        keyButtons.clear();
 
-            onBindingsChanged();
-            return true;
-        } else {
-            return super.keyReleased(p_193987_, p_193988_, p_193989_);
+        for (KeyboardLayoutKey item : keyboardLayout.getKeyboardLayoutKeys()) {
+            int x = layoutLeft + item.getX()
+                    + (layoutWidth / 2 - keyboardLayout.getWidth() / 2)
+                    - keyboardLayout.getMinX();
+            int y = layoutTop + item.getY()
+                    + (layoutHeight / 2 - keyboardLayout.getHeight() / 2)
+                    - keyboardLayout.getMinY();
+
+            KeyButton button = new KeyButton(this, keyboardLayout, item, x, y, () -> onKeyButtonPressed(item));
+            keyButtons.add(addRenderableWidget(button));
         }
     }
 
-    @Override
-    public boolean mouseClicked(double p_193983_, double p_193984_, int p_19394_) {
-        if (this.keyMappingToChange != null) {
-            this.keyMappingToChange.setKeyModifierAndCode(KeyUtil.getActiveKeyModifier(), InputConstants.Type.MOUSE.getOrCreate(p_19394_));
-            this.options.setKey(this.keyMappingToChange, InputConstants.Type.MOUSE.getOrCreate(p_19394_));
-            this.keyMappingToChange = null;
-            KeyMapping.resetMapping();
-            onBindingsChanged();
-            return true;
-        } else {
-            return super.mouseClicked(p_193983_, p_193984_, p_19394_);
+    private void onKeyButtonPressed(KeyboardLayoutKey item) {
+        if (detailsList != null && detailsList.getSelectedKey() != null
+                && detailsList.getSelectedKey().getKey().equals(item.getKey())) {
+            detailsList.setSelectedKey(null);
+            return;
         }
+        detailsList.setSelectedKey(item);
     }
 
-    @Override
-    public void setFocused(@Nullable GuiEventListener p_94677_) {
-        var currentFocused = getFocused();
-        if(currentFocused instanceof EditBox editBox && !currentFocused.equals(p_94677_)){
-            editBox.setFocused(false);
-        }
-        super.setFocused(p_94677_);
+    public void beginEditing(KeyMapping keyMapping) {
+        this.keyMappingToChange = keyMapping;
+        this.detailsList.rebuild();
+        this.allBindingsList.rebuild();
     }
 
     public KeyMapping getKeyMappingToChange() {
@@ -337,210 +276,112 @@ public class AlternativeKeybindScreen extends OptionsSubScreen {
         this.keyMappingToChange = keyMappingToChange;
     }
 
-    public KeyDetailsList getDetailsList() {
+    public KeyBindingList getDetailsList() {
         return detailsList;
     }
 
-    public void onBindingsChanged(){
-        if(this.detailsList != null){
-            detailsList.onBindingsUpdated();
+    public void onBindingsChanged() {
+        if (this.detailsList != null) {
+            this.detailsList.rebuild();
         }
-        defaultKeyBindsList.onBindingsUpdated();
-    }
-
-
-    public KeyMapping[] getKeyMappings(KeyboardLayoutKey key){
-        return Arrays.stream(ArrayUtils.clone(options.keyMappings)).filter(x->
-                x.getKey().getValue() == key.getKey().getValue()
-                ||
-                x.getKeyModifier().matches(key.getKey())
-        ).toArray(KeyMapping[]::new);
-    }
-
-    private void createLayoutButtons(KeyBoardLayout keyboardLayout){
-
-
-        keyButtons.forEach(item->{
-            removeWidget(item);
-        });
-        keyButtons.clear();
-
-
-        keyboardLayout.getKeyboardLayoutKeys().forEach(item->{
-
-            var btn = new KeyButton(
-                    this,
-                    keyboardLayout,
-                    item,
-                    layoutLeft + item.getX()
-                            + (layoutWidth / 2 -  keyboardLayout.getWidth() / 2) // center to center
-                            - keyboardLayout.getMinX() // set min to 0
-                    ,
-                    layoutTop + item.getY()
-                            + (layoutHeight / 2 - keyboardLayout.getHeight() / 2) // center to center
-                            - keyboardLayout.getMinY()
-                    ,
-                    (x)->{
-
-                        if(detailsList != null){
-                            if (detailsList.getSelectedKey().getKey().getValue() == item.getKey().getValue()) {
-                                removeWidget(detailsList);
-                                detailsList = null;
-                                return;
-                            }
-                        }
-
-                        setDetailsList(item);
-
-                    }
-            );
-
-            keyButtons.add(addRenderableWidget(btn));
-        });
-    }
-
-    public void setDetailsList(KeyboardLayoutKey keyboardLayoutKey) {
-        if(detailsList != null){
-            removeWidget(detailsList);
+        if (this.allBindingsList != null) {
+            this.allBindingsList.rebuild();
         }
-        detailsList = addWidget(new KeyDetailsList(
-                this,
-                minecraft,
-                options,
-                keyboardLayoutKey,
-                detailsListLeft,
-                detailsListTop,
-                detailsListWidth,
-                detailsListHeight
-        ));
+    }
+
+    public KeyMapping[] getKeyMappings(KeyboardLayoutKey key) {
+        String name = key.getKey().getName();
+        return Arrays.stream(options.keyMappings)
+                .filter(keyMapping -> keyMapping.saveString().equals(name))
+                .toArray(KeyMapping[]::new);
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float p_193994_) {
-        super.render(guiGraphics, mouseX, mouseY, p_193994_);
+    public boolean keyPressed(KeyEvent event) {
+        if (this.keyMappingToChange != null) {
+            if (event.key() == 256) {
+                this.keyMappingToChange = null;
+            } else {
+                this.keyMappingToChange.setKey(InputConstants.Type.KEYSYM.getOrCreate(event.key()));
+                this.keyMappingToChange = null;
+                options.save();
+                KeyMapping.resetMapping();
+            }
+            onBindingsChanged();
+            return true;
+        }
+        return super.keyPressed(event);
+    }
 
-        guiGraphics.fillGradient(
-                0, height - 30,
-                width,height,
-                new Color(0,0,0,120).getRGB(),
-                new Color(0,0,0,120).getRGB()
-        );
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (this.keyMappingToChange != null) {
+            this.keyMappingToChange.setKey(InputConstants.Type.MOUSE.getOrCreate(event.button()));
+            this.keyMappingToChange = null;
+            options.save();
+            KeyMapping.resetMapping();
+            onBindingsChanged();
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
 
-        if(this.detailsList != null){
-           detailsList.render(guiGraphics, mouseX, mouseY, p_193994_);
+    @Override
+    public void onClose() {
+        this.minecraft.setScreen(this.parentScreen);
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fillGradient(0, this.height - 30, this.width, this.height, 0x78000000, 0x78000000);
+
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+
+        graphics.centeredText(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
+
+        if (this.detailsList.getSelectedKey() == null) {
+            graphics.text(this.font, Component.literal("Select a key to view/edit bindings"),
+                    detailsListLeft + 10, detailsListTop + 30, 0xFF8A8A8A, false);
         }
 
-        this.defaultKeyBindsList.render(guiGraphics, mouseX, mouseY, p_193994_);
-
-        guiGraphics.drawCenteredString( this.font, this.title, this.width / 2, 8, 16777215);
-
-        if(activeKeyboardLayout == null){
-            rotateLayoutButton.setMessage(Component.literal(keyboardLayouts.isEmpty() ? "No layouts.." : "Select layout"));
-        }else{
-            rotateLayoutButton.setMessage(Component.literal(activeKeyboardLayout.getName().getString())
-                    .append(" " + (getActiveKeyboardLayoutIndex() + 1) + "/" + keyboardLayouts.size() ));
-        }
-        rotateLayoutButton.render(guiGraphics, mouseX, mouseY, p_193994_);
-
-        if(this.getDetailsList() == null){
-            renderNoSelectionInfo(guiGraphics, mouseX, mouseY, p_193994_);
-        }
-
-        if(ClientConfig.displayLayoutButtonTooltips.get()){
-            keyButtons.forEach(keyButton -> {
-                if(keyButton.isHovered()){
-                    List<Component> componentList = new ArrayList<>();
-                    componentList.add(keyButton.getMessage());
-
-                    var keyMappings = keyButton.getKeymappings();
-
-                    if(keyMappings.length == 0){
-                        componentList.add(Component.literal( "No bindings").withStyle(ChatFormatting.DARK_GRAY));
-                    }else{
-                        componentList.add(Component.literal(""));
-                        for (var keymapping : keyMappings){
-                            componentList.add(Component.literal(" - ").append(Component.translatable(keymapping.getName()))
-                                    .withStyle(KeyUtil.hasConflict(keyMappings, keymapping) ? ChatFormatting.GOLD: ChatFormatting.GRAY));
+        if (ClientConfig.displayLayoutButtonTooltips && this.keyMappingToChange == null) {
+            for (KeyButton keyButton : keyButtons) {
+                if (keyButton.isMouseOver(mouseX, mouseY)) {
+                    List<Component> tooltip = new ArrayList<>();
+                    tooltip.add(keyButton.getKeyboardLayoutKey().getKey().getDisplayName());
+                    KeyMapping[] keyMappings = keyButton.getKeymappings();
+                    if (keyMappings.length == 0) {
+                        tooltip.add(Component.literal("No bindings").withStyle(ChatFormatting.DARK_GRAY));
+                    } else {
+                        tooltip.add(Component.literal(""));
+                        for (KeyMapping keyMapping : keyMappings) {
+                            tooltip.add(Component.literal(" - ")
+                                    .append(Component.translatable(keyMapping.getName()))
+                                    .withStyle(ChatFormatting.GRAY));
                         }
                     }
-                    guiGraphics.renderComponentTooltip(font,componentList,mouseX,mouseY);
+                    graphics.setComponentTooltipForNextFrame(this.font, tooltip, mouseX, mouseY);
                 }
-            });
-        }
-
-        if(ClientConfig.displayChangeAndResetButtonTooltips.get()){
-            if(detailsList != null){
-                detailsList.getChildAt(mouseX,mouseY).ifPresent(x->{
-                    if(x instanceof KeyDetailsList.KeyInfoEntry keyInfoEntry){
-                        if(keyInfoEntry.getResetButton().isHoveredOrFocused()){
-                            guiGraphics. renderTooltip(font,Component.translatable("controls.reset"),mouseX,mouseY);
-                        } else if (keyInfoEntry.getChangeButton().isHoveredOrFocused()) {
-                            guiGraphics.renderTooltip(font,Component.literal("Change binding"),mouseX,mouseY);
-                        }
-                    }
-                });
-            }
-            defaultKeyBindsList.getChildAt(mouseX,mouseY).ifPresent(x->{
-                if(x instanceof DefaultKeyBindsList.KeyEntry keyInfoEntry){
-                    if(keyInfoEntry.getResetButton().isHoveredOrFocused()){
-                        guiGraphics.renderTooltip(font,Component.translatable("controls.reset"),mouseX,mouseY);
-                    } else if (keyInfoEntry.getChangeButton().isHoveredOrFocused()) {
-                        guiGraphics.renderTooltip(font,Component.literal("Change binding"),mouseX,mouseY);
-                    }
-                }
-            });
-        }
-
-        this.keyMappingNameFilterEditBox.render(guiGraphics, mouseX, mouseY, p_193994_);
-        if(this.keyMappingNameFilterEditBox.getValue().isEmpty()){
-            guiGraphics.drawString(
-                    font,
-                    Component.literal("Filter name"),
-                    defaultListLeft + 4,
-                    PAGE_PADDING_TOP + 6,
-                    Color.darkGray.getRGB()
-            );
-        }
-        this.keyMappingCategoryFilterEditBox.render(guiGraphics, mouseX, mouseY, p_193994_);
-        if(this.keyMappingCategoryFilterEditBox.getValue().isEmpty()){
-            guiGraphics.drawString(
-                    font,
-                    Component.literal("Filter category "),
-                    defaultListLeft + (defaultListWidth / 2) + 4,
-                    PAGE_PADDING_TOP + 6,
-                    Color.darkGray.getRGB()
-            );
-        }
-
-        super.render(guiGraphics, mouseX, mouseY, p_193994_);
-    }
-
-
-    public void renderNoSelectionInfo(GuiGraphics guiGraphics, int p_193992_, int p_193993_, float p_193994_) {
-        guiGraphics.drawString(
-            font,
-            Component.literal("Select a key to view/edit bindings"),
-            detailsListLeft + 10,
-            defaultListTop + 30 ,
-            Color.GRAY.getRGB()
-        );
-    }
-
-    private boolean hasNonDefaultBindings(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            if (!keymapping.isDefault()) {
-                return  true;
             }
         }
-        return false;
-    }
-    private boolean hasBoundBindings(){
-        for(KeyMapping keymapping : this.options.keyMappings) {
-            if (!keymapping.isUnbound()) {
-                return  true;
-            }
+
+        if (this.keyMappingToChange != null) {
+            String text = "Press a key or mouse button... (ESC to cancel)";
+            int textWidth = this.font.width(text);
+            int x = this.width / 2 - textWidth / 2;
+            int y = this.height / 2 - 4;
+            graphics.fill(x - 6, y - 6, x + textWidth + 6, y + 14, 0xE0101010);
+            graphics.outline(x - 6, y - 6, textWidth + 12, 20, ACTIVE_COLOR);
+            graphics.text(this.font, text, x, y, ACTIVE_COLOR, false);
         }
-        return false;
     }
 
+    @Nullable
+    public Screen getParentScreen() {
+        return parentScreen;
+    }
+
+    public static String modId() {
+        return VisualKeybinder.MOD_ID;
+    }
 }

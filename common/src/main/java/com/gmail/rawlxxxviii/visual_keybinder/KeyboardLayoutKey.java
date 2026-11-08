@@ -1,12 +1,11 @@
 package com.gmail.rawlxxxviii.visual_keybinder;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 public class KeyboardLayoutKey {
-
 
     private final InputConstants.Key key;
     private final int x;
@@ -40,7 +39,6 @@ public class KeyboardLayoutKey {
         return wide;
     }
 
-
     @Nullable
     public static KeyboardLayoutKey fromString(String content) {
         var splitted = content.split(";");
@@ -68,10 +66,9 @@ public class KeyboardLayoutKey {
 
     @Override
     public String toString() {
-        return key.getName() + ";" +  // <--- Change key.toString() to key.getName()
+        return key.getName() + ";" +
                 x + ";" +
                 y + ";" +
-                (wide ? "wide" : "")
-                ;
+                (wide ? "wide" : "");
     }
 }

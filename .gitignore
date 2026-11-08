@@ -29,3 +29,7 @@ mcmodsrepo
 .acl-diagnostics
 probe-out
 
+
+.mc-cache
+probe-out
+

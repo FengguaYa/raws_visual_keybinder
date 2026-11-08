@@ -3,12 +3,11 @@ package com.gmail.rawlxxxviii.visual_keybinder.util;
 import com.gmail.rawlxxxviii.visual_keybinder.KeyBoardLayout;
 import com.gmail.rawlxxxviii.visual_keybinder.KeybindingPreset;
 import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
+import com.gmail.rawlxxxviii.visual_keybinder.VisualKeybinder;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Options;
 import net.minecraft.network.chat.Component;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.client.settings.KeyModifier;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -331,7 +330,7 @@ public class FileUtil {
 
     public static void createInitializedFile(){
         try {
-            new File(String.valueOf(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + IS_INITIALIZED_FILE_NAME))).createNewFile();
+            new File(String.valueOf(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + IS_INITIALIZED_FILE_NAME))).createNewFile();
         }catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -339,7 +338,7 @@ public class FileUtil {
     }
 
     public static boolean isInitializedFileCreated(){
-        return new File(String.valueOf(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + IS_INITIALIZED_FILE_NAME ))).isFile();
+        return new File(String.valueOf(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + IS_INITIALIZED_FILE_NAME ))).isFile();
     }
 
     public static void createDefaultLayouts(){
@@ -363,9 +362,9 @@ public class FileUtil {
         try {
             enforceBaseDirectory();
 
-            var file = new File(String.valueOf(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LOAD_ON_STARTUP_FILE_NAME)));
+            var file = new File(String.valueOf(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LOAD_ON_STARTUP_FILE_NAME)));
             if(!file.exists() || !file.isFile()){
-                FileWriter writer = new FileWriter(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LOAD_ON_STARTUP_FILE_NAME).toString());
+                FileWriter writer = new FileWriter(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LOAD_ON_STARTUP_FILE_NAME).toString());
                 writer.append(LOAD_ON_STARTUP_FILE_CONTENT);
                 writer.append("\n");
                 writer.close();
@@ -432,7 +431,7 @@ public class FileUtil {
 
         enforceLayoutDirectory();
 
-        FileWriter writer = new FileWriter(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER + File.separator + fileName).toString());
+        FileWriter writer = new FileWriter(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER + File.separator + fileName).toString());
         writer.append(contents);
         writer.close();
 
@@ -454,10 +453,10 @@ public class FileUtil {
 
         }
 
-        FileWriter writer = new FileWriter(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + name + PRESET_EXTENSION).toString());
+        FileWriter writer = new FileWriter(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + name + PRESET_EXTENSION).toString());
         for (var keymapping : options.keyMappings){
             String mappingName = keymapping.getName();
-            String key = keymapping.saveString() + (keymapping.getKeyModifier() != net.neoforged.neoforge.client.settings.KeyModifier.NONE ? ":" + keymapping.getKeyModifier() : "");
+            String key = keymapping.saveString();
             writer.append(mappingName).append(":").append(key);
             writer.append("\n");
         }
@@ -530,17 +529,18 @@ public class FileUtil {
             var presetValue = allLines.stream().filter(x -> x.startsWith(mappingName + ":")).findFirst();
             presetValue.ifPresentOrElse(
                     x->{
-                        var value = x.substring(mappingName.length() + 1 );
+                        var value = x.substring(mappingName.length() + 1);
 
-                        if (value.indexOf(':') != -1) {
-                            String[] pts = value.split(":");
-                            keymapping.setKeyModifierAndCode(net.neoforged.neoforge.client.settings.KeyModifier.valueFromString(pts[1]), InputConstants.getKey(pts[0]));
-                        } else {
-                            keymapping.setKeyModifierAndCode(net.neoforged.neoforge.client.settings.KeyModifier.NONE, InputConstants.getKey(value));
+                        // Older presets may carry a ":<modifier>" suffix from the
+                        // NeoForge only builds; only the key part is used now.
+                        int colon = value.indexOf(':');
+                        if (colon != -1) {
+                            value = value.substring(0, colon);
                         }
+                        keymapping.setKey(InputConstants.getKey(value));
                     },
                     () -> {
-                        keymapping.setKeyModifierAndCode(KeyModifier.NONE,InputConstants.UNKNOWN);
+                        keymapping.setKey(InputConstants.UNKNOWN);
                     }
                 );
 
@@ -560,14 +560,14 @@ public class FileUtil {
             return;
         }
 
-        Files.delete(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + name + PRESET_EXTENSION));
+        Files.delete(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + name + PRESET_EXTENSION));
     }
 
     public static List<String> getPresetFileList() throws IOException {
 
         enforcePresetDirectory();
 
-        try (Stream<Path> stream = Files.list( FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER)) ){
+        try (Stream<Path> stream = Files.list( VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER)) ){
 
 
             return stream
@@ -583,7 +583,7 @@ public class FileUtil {
 
         enforceLayoutDirectory();
 
-        try (Stream<Path> stream = Files.list( FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER)) ){
+        try (Stream<Path> stream = Files.list( VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER)) ){
 
             return stream
                     .filter(file -> !Files.isDirectory(file))
@@ -607,13 +607,13 @@ public class FileUtil {
 
     public static List<String> getAllFileLines(String fileName) throws IOException {
         return
-                Files.readAllLines(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + fileName));
+                Files.readAllLines(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + fileName));
 
     }
 
     public static List<String> getAllPresetFileLines(String fileName) throws IOException {
         return
-                Files.readAllLines(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + fileName));
+                Files.readAllLines(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER + File.separator + fileName));
 
     }
 
@@ -621,7 +621,7 @@ public class FileUtil {
     public static List<String> getAllLayoutFileLines(String fileName)  {
         try {
             return
-                    Files.readAllLines(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER + File.separator + fileName));
+                    Files.readAllLines(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER + File.separator + fileName));
         } catch (IOException e) {
             return null;
         }
@@ -630,7 +630,7 @@ public class FileUtil {
 
     private static void enforceBaseDirectory(){
         try {
-            Files.createDirectories(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER));
+            Files.createDirectories(VisualKeybinder.getGameDir().resolve(BASE_FOLDER));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -638,7 +638,7 @@ public class FileUtil {
 
     private static void enforcePresetDirectory()  {
         try {
-            Files.createDirectories(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER));
+            Files.createDirectories(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + PRESET_FOLDER));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -646,7 +646,7 @@ public class FileUtil {
 
     private static void enforceLayoutDirectory()  {
         try {
-            Files.createDirectories(FMLPaths.GAMEDIR.get().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER));
+            Files.createDirectories(VisualKeybinder.getGameDir().resolve(BASE_FOLDER + File.separator + LAYOUT_FOLDER));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
