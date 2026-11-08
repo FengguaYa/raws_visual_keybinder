@@ -120,6 +120,10 @@ public class KeyButton extends ImageButton {
 
     @Override
     public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        // The keyboard is scaled with the pose matrix, so the vanilla hit test
+        // (which uses the unscaled rectangle) has to be corrected here.
+        this.isHovered = checkIsMouseOver(mouseX, mouseY);
+
         float scale = getScale();
         var pose = graphics.pose();
         pose.pushMatrix();
@@ -140,19 +144,27 @@ public class KeyButton extends ImageButton {
         int u = empty ? canvasX + 3 * this.width : conflict ? canvasX + this.width : canvasX + 2 * this.width;
         int v = this.isHoveredOrFocused() ? AlternativeKeybindScreen.KEY_BUTTON_HEIGHT : 0;
 
-        graphics.blit(GUI_TEXTURE, getX(), getY(), this.width, this.height, u, v, 512, 512);
+        blitTextureRegion(graphics, getX(), getY(), this.width, this.height, u, v);
 
         boolean selected = parentScreen.getDetailsList() != null
                 && parentScreen.getDetailsList().getSelectedKey() != null
                 && parentScreen.getDetailsList().getSelectedKey().getKey().equals(keyboardLayoutKey.getKey());
         if (selected) {
-            graphics.blit(GUI_TEXTURE, getX(), getY(), this.width, this.height,
-                    canvasX + 4 * this.width, 0, 512, 512);
+            blitTextureRegion(graphics, getX(), getY(), this.width, this.height, canvasX + 4 * this.width, 0);
         }
 
         Font font = Minecraft.getInstance().font;
         int color = empty ? 0xFF808080 : conflict ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFFFFFFF;
         graphics.centeredText(font, getMessage(),
                 getX() + this.width / 2, getY() + (this.height - 8) / 2, color);
+    }
+
+    private void blitTextureRegion(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
+                                   int u, int v) {
+        float u0 = u / 512f;
+        float u1 = (u + width) / 512f;
+        float v0 = v / 512f;
+        float v1 = (v + height) / 512f;
+        graphics.blit(GUI_TEXTURE, x, y, x + width, y + height, u0, u1, v0, v1);
     }
 }
