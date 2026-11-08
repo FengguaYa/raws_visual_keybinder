@@ -43,6 +43,9 @@ public final class VisualKeybinder {
     public static KeyMapping OPEN_SCREEN;
     public static final KeyMapping[] PRESET_KEYS = new KeyMapping[5];
 
+    private static Button menuButton;
+    private static Screen menuButtonParent;
+
     private static Path gameDir;
     private static boolean initialized;
 
@@ -169,7 +172,26 @@ public final class VisualKeybinder {
                 Identifier.fromNamespaceAndPath(MOD_ID, "icon_highlighted"));
         MenuButton button = new MenuButton(0, 0, 27, 20, sprites, ignored -> openScreen(parent), parent);
         button.setTooltip(Tooltip.create(Component.translatable("raws_visual_keybinder.screen.title")));
+        menuButton = button;
+        menuButtonParent = parent;
         return button;
+    }
+
+    /**
+     * The 26.1 controls screen uses a full width options list, and the list wins
+     * the click because the vanilla child lookup returns the first match. The
+     * button therefore lives at the same place as in 1.21 and the click is
+     * intercepted before the screen dispatches it to the list.
+     */
+    public static boolean handleMenuClick(Screen screen, double mouseX, double mouseY, int button) {
+        if (button != 0 || menuButton == null || menuButtonParent != screen) {
+            return false;
+        }
+        if (!menuButton.isMouseOver(mouseX, mouseY)) {
+            return false;
+        }
+        openScreen(screen);
+        return true;
     }
 
     public static void openScreen(Screen parent) {
@@ -227,11 +249,11 @@ public final class VisualKeybinder {
             if (target != null) {
                 setX(Math.min(target.getX() + target.getWidth() + 16 + ClientConfig.menuButtonOffsetX,
                         parent.width - 32));
+                setY(target.getY() + ClientConfig.menuButtonOffsetY);
             } else {
                 setX(Math.min(parent.width / 2 + 166 + ClientConfig.menuButtonOffsetX, parent.width - 32));
+                setY(8 + ClientConfig.menuButtonOffsetY);
             }
-            // Stay in the header, above the (full width) options list so clicks work.
-            setY(8 + ClientConfig.menuButtonOffsetY);
         }
 
         private static void harvest(Iterable<? extends GuiEventListener> listeners, List<AbstractWidget> out) {

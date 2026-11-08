@@ -22,6 +22,7 @@ public class VisualKeybinderNeoForge {
         modEventBus.addListener(this::registerKeyMappings);
         NeoForge.EVENT_BUS.addListener(this::onClientTick);
         NeoForge.EVENT_BUS.addListener(this::onScreenInit);
+        NeoForge.EVENT_BUS.addListener(this::onMousePressed);
     }
 
     private void registerKeyMappings(RegisterKeyMappingsEvent event) {
@@ -35,6 +36,12 @@ public class VisualKeybinderNeoForge {
     private void onScreenInit(ScreenEvent.Init.Post event) {
         if (event.getScreen() instanceof ControlsScreen screen) {
             event.addListener(VisualKeybinder.createMenuButton(screen));
+        }
+    }
+
+    private void onMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        if (VisualKeybinder.handleMenuClick(event.getScreen(), event.getMouseX(), event.getMouseY(), event.getButton())) {
+            event.setCanceled(true);
         }
     }
 }
