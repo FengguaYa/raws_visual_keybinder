@@ -93,22 +93,22 @@ public class KeyBindingList extends ScrollList {
             rows.add(Row.binding(keyMapping));
         }
         if (rows.isEmpty()) {
-            rows.add(Row.text(Component.literal("No results"), 0xFF9A9A9A));
+            rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_results"), 0xFF9A9A9A));
         }
     }
 
     private void buildDetailRows(KeyMapping[] all) {
-        rows.add(Row.text(Component.literal("Selected key: ")
-                .append(selectedKey == null ? Component.literal("none") : selectedKey.getKey().getDisplayName()), 0xFFFFFFFF));
+        rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.selected_key",
+                selectedKey == null ? Component.translatable("raws_visual_keybinder.screen.none") : selectedKey.getKey().getDisplayName()), 0xFFFFFFFF));
 
         if (selectedKey == null) {
-            rows.add(Row.text(Component.literal("Select a key to view/edit bindings"), 0xFF9A9A9A));
+            rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_selection"), 0xFF9A9A9A));
             return;
         }
 
         KeyMapping[] keyMappings = screen.getKeyMappings(selectedKey);
         if (keyMappings.length == 0) {
-            rows.add(Row.text(Component.literal("No bindings"), 0xFF9A9A9A));
+            rows.add(Row.text(Component.translatable("raws_visual_keybinder.screen.no_bindings"), 0xFF9A9A9A));
             return;
         }
 

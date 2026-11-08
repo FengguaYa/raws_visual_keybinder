@@ -2,37 +2,54 @@ package com.gmail.rawlxxxviii.visual_keybinder.widget;
 
 import com.gmail.rawlxxxviii.visual_keybinder.KeyBoardLayout;
 import com.gmail.rawlxxxviii.visual_keybinder.KeyboardLayoutKey;
+import com.gmail.rawlxxxviii.visual_keybinder.VisualKeybinder;
 import com.gmail.rawlxxxviii.visual_keybinder.screen.AlternativeKeybindScreen;
 import com.gmail.rawlxxxviii.visual_keybinder.util.KeyUtil;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
- * One key of the visual keyboard. The button is drawn manually so the whole
- * keyboard can be scaled with the 2D pose matrix of the new GUI renderer.
+ * One key of the visual keyboard. Uses the original textures (the button sprite
+ * plus the {@code gui.png} overlay) so the port keeps the look of the 1.21 mod.
  */
-public class KeyButton extends AbstractWidget {
+public class KeyButton extends ImageButton {
+
+    private static final Identifier GUI_TEXTURE =
+            Identifier.fromNamespaceAndPath(VisualKeybinder.MOD_ID, "textures/gui/gui.png");
+
+    private static final WidgetSprites KEY_BUTTON_WIDGET_SPRITES = new WidgetSprites(
+            Identifier.fromNamespaceAndPath(VisualKeybinder.MOD_ID, "key_button"),
+            Identifier.fromNamespaceAndPath(VisualKeybinder.MOD_ID, "key_button_highlighted"));
+
+    private static final WidgetSprites KEY_BUTTON_WIDGET_SPRITES_WIDE = new WidgetSprites(
+            Identifier.fromNamespaceAndPath(VisualKeybinder.MOD_ID, "key_button_wide"),
+            Identifier.fromNamespaceAndPath(VisualKeybinder.MOD_ID, "key_button_wide_highlighted"));
 
     private final AlternativeKeybindScreen parentScreen;
     private final KeyBoardLayout keyBoardLayout;
     private final KeyboardLayoutKey keyboardLayoutKey;
-    private final Runnable onPress;
 
     public KeyButton(AlternativeKeybindScreen parentScreen, KeyBoardLayout keyBoardLayout,
                      KeyboardLayoutKey keyboardLayoutKey, int x, int y, Runnable onPress) {
-        super(x, y,
+        super(
+                x, y,
                 keyboardLayoutKey.isWide() ? AlternativeKeybindScreen.WIDE_KEY_BUTTON_WIDTH : AlternativeKeybindScreen.KEY_BUTTON_WIDTH,
                 AlternativeKeybindScreen.KEY_BUTTON_HEIGHT,
-                keyboardLayoutKey.getKey().getDisplayName());
+                keyboardLayoutKey.isWide() ? KEY_BUTTON_WIDGET_SPRITES_WIDE : KEY_BUTTON_WIDGET_SPRITES,
+                button -> onPress.run(),
+                keyboardLayoutKey.getKey().getDisplayName()
+        );
+
         this.parentScreen = parentScreen;
         this.keyBoardLayout = keyBoardLayout;
         this.keyboardLayoutKey = keyboardLayoutKey;
-        this.onPress = onPress;
     }
 
     public KeyboardLayoutKey getKeyboardLayoutKey() {
@@ -97,40 +114,45 @@ public class KeyButton extends AbstractWidget {
         if (!checkIsMouseOver(event.x(), event.y())) {
             return false;
         }
-        this.onPress.run();
+        this.onPress(event);
         return true;
     }
 
     @Override
-    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        this.isHovered = checkIsMouseOver(mouseX, mouseY);
-
-        boolean empty = isEmpty();
-        boolean conflict = hasConflict();
-        boolean selected = parentScreen.getDetailsList() != null
-                && parentScreen.getDetailsList().getSelectedKey() != null
-                && parentScreen.getDetailsList().getSelectedKey().getKey().equals(keyboardLayoutKey.getKey());
-
-        int background = this.isHovered ? 0xFF4A4A4A : 0xFF2B2B2B;
-        int border = selected ? 0xFF1FB0FF : conflict ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFF5A5A5A;
-        int textColor = empty ? 0xFF8E959A : conflict ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFFFFFFF;
-
+    public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         float scale = getScale();
         var pose = graphics.pose();
         pose.pushMatrix();
         pose.translate(getDiffX(), getDiffY());
         pose.scale(scale, scale);
 
-        graphics.fill(getX(), getY(), getX() + this.width, getY() + this.height, background);
-        graphics.outline(getX(), getY(), this.width, this.height, border);
-        graphics.centeredText(Minecraft.getInstance().font, getMessage(),
-                getX() + this.width / 2, getY() + (this.height - 8) / 2, textColor);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
+        renderOverlay(graphics);
 
         pose.popMatrix();
     }
 
-    @Override
-    protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
-        this.defaultButtonNarrationText(narrationElementOutput);
+    private void renderOverlay(GuiGraphicsExtractor graphics) {
+        boolean empty = isEmpty();
+        boolean conflict = hasConflict();
+
+        int canvasX = keyboardLayoutKey.isWide() ? 120 : 0;
+        int u = empty ? canvasX + 3 * this.width : conflict ? canvasX + this.width : canvasX + 2 * this.width;
+        int v = this.isHoveredOrFocused() ? AlternativeKeybindScreen.KEY_BUTTON_HEIGHT : 0;
+
+        graphics.blit(GUI_TEXTURE, getX(), getY(), this.width, this.height, u, v, 512, 512);
+
+        boolean selected = parentScreen.getDetailsList() != null
+                && parentScreen.getDetailsList().getSelectedKey() != null
+                && parentScreen.getDetailsList().getSelectedKey().getKey().equals(keyboardLayoutKey.getKey());
+        if (selected) {
+            graphics.blit(GUI_TEXTURE, getX(), getY(), this.width, this.height,
+                    canvasX + 4 * this.width, 0, 512, 512);
+        }
+
+        Font font = Minecraft.getInstance().font;
+        int color = empty ? 0xFF808080 : conflict ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFFFFFFF;
+        graphics.centeredText(font, getMessage(),
+                getX() + this.width / 2, getY() + (this.height - 8) / 2, color);
     }
 }

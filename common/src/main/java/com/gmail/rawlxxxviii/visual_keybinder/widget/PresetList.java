@@ -65,13 +65,13 @@ public class PresetList extends ScrollList {
                 getX() + 8, rowTop + 8,
                 active ? AlternativeKeybindScreen.ACTIVE_COLOR : 0xFFE0E0E0, false);
 
-        drawButton(graphics, font, Component.literal("Save"), saveButtonX(), rowTop,
+        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.save"), saveButtonX(), rowTop,
                 BUTTON_WIDTH, isInside(mouseX, mouseY, saveButtonX(), rowTop),
                 preset.isReadOnly() ? 0xFF808080 : AlternativeKeybindScreen.RESET_COLOR);
-        drawButton(graphics, font, Component.literal("Load"), loadButtonX(), rowTop,
+        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.load"), loadButtonX(), rowTop,
                 BUTTON_WIDTH, isInside(mouseX, mouseY, loadButtonX(), rowTop),
                 active ? 0xFF808080 : 0xFFFFFFFF);
-        drawButton(graphics, font, Component.literal("Delete"), deleteButtonX(), rowTop,
+        drawButton(graphics, font, Component.translatable("raws_visual_keybinder.presets.delete"), deleteButtonX(), rowTop,
                 BUTTON_WIDTH, isInside(mouseX, mouseY, deleteButtonX(), rowTop),
                 preset.isReadOnly() ? 0xFF808080 : AlternativeKeybindScreen.DANGER_COLOR);
     }

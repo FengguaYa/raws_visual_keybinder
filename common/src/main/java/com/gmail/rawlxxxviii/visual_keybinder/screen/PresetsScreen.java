@@ -23,7 +23,7 @@ public class PresetsScreen extends Screen {
     private PresetList presetList;
 
     public PresetsScreen(Screen parentScreen, Options options) {
-        super(Component.literal("Keybinding presets"));
+        super(Component.translatable("raws_visual_keybinder.presets.title"));
         this.parentScreen = parentScreen;
         this.options = options;
     }
@@ -51,11 +51,11 @@ public class PresetsScreen extends Screen {
                 uiTop,
                 Math.max(40, uiWidth - 110),
                 20,
-                Component.literal("new preset name")
+                Component.translatable("raws_visual_keybinder.presets.name_hint")
         ));
-        this.newPresetNameEditBox.setHint(Component.literal("Preset name"));
+        this.newPresetNameEditBox.setHint(Component.translatable("raws_visual_keybinder.presets.name_hint"));
 
-        addRenderableWidget(Button.builder(Component.literal("Save preset"), button -> savePreset(newPresetNameEditBox.getValue()))
+        addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.presets.save_preset"), button -> savePreset(newPresetNameEditBox.getValue()))
                 .bounds(uiLeft + uiWidth - 100, uiTop, 100, 20)
                 .build());
 
@@ -65,11 +65,11 @@ public class PresetsScreen extends Screen {
                 .bounds(this.width / 2 - 75, this.height - 26, 150, 20)
                 .build());
 
-        addRenderableWidget(Button.builder(Component.literal("Unbind all"), button -> unbindAll())
+        addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.presets.unbind_all"), button -> unbindAll())
                 .bounds(uiLeft, this.height - 26, 100, 20)
                 .build());
 
-        addRenderableWidget(Button.builder(Component.literal("Reset all"), button -> resetAll())
+        addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.presets.reset_all"), button -> resetAll())
                 .bounds(uiLeft + 105, this.height - 26, 100, 20)
                 .build());
     }

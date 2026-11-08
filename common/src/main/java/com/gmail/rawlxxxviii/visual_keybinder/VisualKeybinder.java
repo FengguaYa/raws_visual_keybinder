@@ -154,7 +154,7 @@ public final class VisualKeybinder {
                 )
                 .bounds(
                         parent.width / 2 + 150 + 10 + ClientConfig.menuButtonOffsetX,
-                        8 + ClientConfig.menuButtonOffsetY,
+                        parent.height / 6 - 12 + ClientConfig.menuButtonOffsetY,
                         27, 20
                 )
                 .tooltip(Tooltip.create(Component.literal("Visual Keybinder")))

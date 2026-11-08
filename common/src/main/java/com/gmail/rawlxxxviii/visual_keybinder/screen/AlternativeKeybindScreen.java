@@ -82,7 +82,7 @@ public class AlternativeKeybindScreen extends Screen {
     private KeyMapping keyMappingToChange;
 
     public AlternativeKeybindScreen(Screen parentScreen, Options options) {
-        super(Component.literal("Visual Keybinder"));
+        super(Component.translatable("raws_visual_keybinder.screen.title"));
         this.parentScreen = parentScreen;
         this.options = options;
         getKeyboardLayouts();
@@ -138,9 +138,9 @@ public class AlternativeKeybindScreen extends Screen {
                 top,
                 Math.max(40, allListWidth / 2 - 5),
                 20,
-                Component.literal("Name filter")
+                Component.translatable("raws_visual_keybinder.screen.filter_name")
         ));
-        this.keyMappingNameFilterEditBox.setHint(Component.literal("Filter name"));
+        this.keyMappingNameFilterEditBox.setHint(Component.translatable("raws_visual_keybinder.screen.filter_name"));
 
         this.keyMappingCategoryFilterEditBox = addRenderableWidget(new FilterEditBox(
                 this.font,
@@ -148,9 +148,9 @@ public class AlternativeKeybindScreen extends Screen {
                 top,
                 Math.max(40, allListWidth / 2),
                 20,
-                Component.literal("Category filter")
+                Component.translatable("raws_visual_keybinder.screen.filter_category")
         ));
-        this.keyMappingCategoryFilterEditBox.setHint(Component.literal("Filter category"));
+        this.keyMappingCategoryFilterEditBox.setHint(Component.translatable("raws_visual_keybinder.screen.filter_category"));
 
         this.keyMappingNameFilterEditBox.setResponder(allBindingsList::setNameFilter);
         this.keyMappingCategoryFilterEditBox.setResponder(allBindingsList::setCategoryFilter);
@@ -160,7 +160,7 @@ public class AlternativeKeybindScreen extends Screen {
                 .bounds(this.width / 2 - 75, this.height - 26, 150, 20)
                 .build());
 
-        addRenderableWidget(Button.builder(Component.literal("Presets").withStyle(ChatFormatting.WHITE),
+        addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.screen.presets").withStyle(ChatFormatting.WHITE),
                         button -> this.minecraft.setScreen(new PresetsScreen(this, options)))
                 .bounds(5, this.height - 26, 100, 20)
                 .build());
@@ -229,7 +229,7 @@ public class AlternativeKeybindScreen extends Screen {
             return;
         }
         if (activeKeyboardLayout == null) {
-            this.rotateLayoutButton.setMessage(Component.literal(keyboardLayouts.isEmpty() ? "No layouts.." : "Select layout"));
+            this.rotateLayoutButton.setMessage(Component.translatable(keyboardLayouts.isEmpty() ? "raws_visual_keybinder.screen.no_layouts" : "raws_visual_keybinder.screen.select_layout"));
         } else {
             this.rotateLayoutButton.setMessage(Component.literal(activeKeyboardLayout.getName().getString())
                     .append(" " + (getActiveKeyboardLayoutIndex() + 1) + "/" + keyboardLayouts.size()));
@@ -339,11 +339,6 @@ public class AlternativeKeybindScreen extends Screen {
 
         graphics.centeredText(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
 
-        if (this.detailsList.getSelectedKey() == null) {
-            graphics.text(this.font, Component.literal("Select a key to view/edit bindings"),
-                    detailsListLeft + 10, detailsListTop + 30, 0xFF8A8A8A, false);
-        }
-
         if (ClientConfig.displayLayoutButtonTooltips && this.keyMappingToChange == null) {
             for (KeyButton keyButton : keyButtons) {
                 if (keyButton.isMouseOver(mouseX, mouseY)) {
@@ -351,7 +346,7 @@ public class AlternativeKeybindScreen extends Screen {
                     tooltip.add(keyButton.getKeyboardLayoutKey().getKey().getDisplayName());
                     KeyMapping[] keyMappings = keyButton.getKeymappings();
                     if (keyMappings.length == 0) {
-                        tooltip.add(Component.literal("No bindings").withStyle(ChatFormatting.DARK_GRAY));
+                        tooltip.add(Component.translatable("raws_visual_keybinder.screen.no_bindings").withStyle(ChatFormatting.DARK_GRAY));
                     } else {
                         tooltip.add(Component.literal(""));
                         for (KeyMapping keyMapping : keyMappings) {
@@ -366,7 +361,8 @@ public class AlternativeKeybindScreen extends Screen {
         }
 
         if (this.keyMappingToChange != null) {
-            String text = "Press a key or mouse button... (ESC to cancel)";
+            Component hint = Component.translatable("raws_visual_keybinder.screen.editing_hint");
+            String text = hint.getString();
             int textWidth = this.font.width(text);
             int x = this.width / 2 - textWidth / 2;
             int y = this.height / 2 - 4;
