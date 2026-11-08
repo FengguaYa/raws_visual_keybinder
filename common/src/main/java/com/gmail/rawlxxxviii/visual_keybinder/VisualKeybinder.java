@@ -8,8 +8,14 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.WidgetSprites;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -18,6 +24,8 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -82,9 +90,6 @@ public final class VisualKeybinder {
         if (!initialized) {
             ensureInitialized(minecraft);
         }
-        if (minecraft.player == null) {
-            return;
-        }
 
         boolean opened = false;
         while (OPEN_SCREEN != null && OPEN_SCREEN.consumeClick() && !opened) {
@@ -92,6 +97,11 @@ public final class VisualKeybinder {
         }
         if (opened) {
             openScreen(minecraft.screen);
+            return;
+        }
+
+        if (minecraft.player == null) {
+            return;
         }
 
         for (int i = 0; i < PRESET_KEYS.length; i++) {
@@ -148,18 +158,18 @@ public final class VisualKeybinder {
     /**
      * Builds the "VK" button that is injected into the vanilla controls screen.
      */
+    /**
+     * Builds the icon button that is injected into the vanilla controls screen.
+     * The icon lives in {@code textures/gui/sprites/icon.png} exactly like in the
+     * 1.21 release of the mod.
+     */
     public static Button createMenuButton(Screen parent) {
-        return Button.builder(
-                        Component.literal("VK"),
-                        button -> openScreen(parent)
-                )
-                .bounds(
-                        parent.width / 2 + 150 + 10 + ClientConfig.menuButtonOffsetX,
-                        parent.height / 6 - 12 + ClientConfig.menuButtonOffsetY,
-                        27, 20
-                )
-                .tooltip(Tooltip.create(Component.literal("Visual Keybinder")))
-                .build();
+        WidgetSprites sprites = new WidgetSprites(
+                Identifier.fromNamespaceAndPath(MOD_ID, "icon"),
+                Identifier.fromNamespaceAndPath(MOD_ID, "icon_highlighted"));
+        MenuButton button = new MenuButton(0, 0, 27, 20, sprites, ignored -> openScreen(parent), parent);
+        button.setTooltip(Tooltip.create(Component.translatable("raws_visual_keybinder.screen.title")));
+        return button;
     }
 
     public static void openScreen(Screen parent) {
@@ -168,6 +178,71 @@ public final class VisualKeybinder {
             Minecraft.getInstance().setScreen(new AlternativeKeybindScreen(parent, Minecraft.getInstance().options));
         } catch (Throwable throwable) {
             LOGGER.error("[visual_keybinder] Could not open the Visual Keybinder screen", throwable);
+        }
+    }
+
+    /**
+     * The vanilla 26.1 options list is full width and would swallow clicks in its
+     * area, so the button anchors itself next to the right hand column of the
+     * controls screen but stays inside the header, above the list.
+     */
+    private static final class MenuButton extends ImageButton {
+
+        private final Screen parent;
+        private boolean located;
+
+        private MenuButton(int x, int y, int width, int height, WidgetSprites sprites,
+                           Button.OnPress onPress, Screen parent) {
+            super(x, y, width, height, sprites, onPress);
+            this.parent = parent;
+        }
+
+        @Override
+        public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            locate();
+            super.extractContents(graphics, mouseX, mouseY, partialTick);
+        }
+
+        private void locate() {
+            if (located) {
+                return;
+            }
+            located = true;
+
+            List<AbstractWidget> widgets = new ArrayList<>();
+            harvest(parent.children(), widgets);
+
+            AbstractWidget target = null;
+            for (AbstractWidget widget : widgets) {
+                if (widget == this) {
+                    continue;
+                }
+                if (widget.getX() >= parent.width / 2 && widget.getWidth() >= 100) {
+                    if (target == null || widget.getY() < target.getY()) {
+                        target = widget;
+                    }
+                }
+            }
+
+            if (target != null) {
+                setX(Math.min(target.getX() + target.getWidth() + 16 + ClientConfig.menuButtonOffsetX,
+                        parent.width - 32));
+            } else {
+                setX(Math.min(parent.width / 2 + 166 + ClientConfig.menuButtonOffsetX, parent.width - 32));
+            }
+            // Stay in the header, above the (full width) options list so clicks work.
+            setY(8 + ClientConfig.menuButtonOffsetY);
+        }
+
+        private static void harvest(Iterable<? extends GuiEventListener> listeners, List<AbstractWidget> out) {
+            for (GuiEventListener listener : listeners) {
+                if (listener instanceof AbstractWidget widget) {
+                    out.add(widget);
+                }
+                if (listener instanceof ContainerEventHandler container) {
+                    harvest(container.children(), out);
+                }
+            }
         }
     }
 

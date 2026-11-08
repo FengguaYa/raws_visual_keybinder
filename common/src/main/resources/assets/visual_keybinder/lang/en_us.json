@@ -19,7 +19,7 @@
   "raws_visual_keybinder.screen.filter_category": "Filter category",
   "raws_visual_keybinder.screen.no_layouts": "No layouts..",
   "raws_visual_keybinder.screen.select_layout": "Select layout",
-  "raws_visual_keybinder.screen.editing_hint": "Press a key or mouse button... (ESC to cancel)",
+  "raws_visual_keybinder.screen.editing_hint": "Press a key or mouse button... (ESC unbinds)",
   "raws_visual_keybinder.screen.no_selection": "Select a key to view/edit bindings",
   "raws_visual_keybinder.screen.no_bindings": "No bindings",
   "raws_visual_keybinder.screen.no_results": "No results",

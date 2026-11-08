@@ -161,22 +161,27 @@ public class KeyBindingList extends ScrollList {
         if (row.header) {
             graphics.fill(getX(), rowTop, getX() + this.width, rowTop + rowHeight,
                     AlternativeKeybindScreen.LIST_TITLE_BACKGROUND_COLOR);
-            graphics.text(font, row.label, left, rowTop + 6, 0xFFFFFFFF, false);
+            String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
+            graphics.text(font, text, left, rowTop + 6, 0xFFFFFFFF, false);
             return;
         }
 
         if (row.mapping == null) {
-            graphics.text(font, row.label, left, rowTop + 6, row.color, false);
+            String text = font.plainSubstrByWidth(row.label.getString(), Math.max(20, this.width - 12));
+            graphics.text(font, text, left, rowTop + 6, row.color, false);
             return;
         }
 
         KeyMapping keyMapping = row.mapping;
         boolean conflicting = KeyUtil.hasConflict(options.keyMappings, keyMapping);
         int nameColor = conflicting ? AlternativeKeybindScreen.CONFLICT_COLOR : 0xFFE0E0E0;
-        graphics.text(font, Component.translatable(keyMapping.getName()), left, rowTop + 6, nameColor, false);
 
         int editX = editButtonX();
         int resetX = resetButtonX();
+
+        int nameWidth = Math.max(20, editX - left - 6);
+        String name = font.plainSubstrByWidth(Component.translatable(keyMapping.getName()).getString(), nameWidth);
+        graphics.text(font, name, left, rowTop + 6, nameColor, false);
 
         Button changeButton = row.changeButton;
         changeButton.setX(editX);

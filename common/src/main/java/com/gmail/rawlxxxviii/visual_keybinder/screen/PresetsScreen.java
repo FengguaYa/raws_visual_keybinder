@@ -61,16 +61,16 @@ public class PresetsScreen extends Screen {
 
         this.presetList = addRenderableWidget(new PresetList(this, options, uiLeft, uiTop + 30, uiWidth, uiHeight - 30));
 
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
-                .bounds(this.width / 2 - 75, this.height - 26, 150, 20)
-                .build());
-
         addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.presets.unbind_all"), button -> unbindAll())
-                .bounds(uiLeft, this.height - 26, 100, 20)
+                .bounds(this.width / 2 - 180, this.height - 26, 100, 20)
                 .build());
 
         addRenderableWidget(Button.builder(Component.translatable("raws_visual_keybinder.presets.reset_all"), button -> resetAll())
-                .bounds(uiLeft + 105, this.height - 26, 100, 20)
+                .bounds(this.width / 2 - 75, this.height - 26, 100, 20)
+                .build());
+
+        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
+                .bounds(this.width / 2 + 30, this.height - 26, 150, 20)
                 .build());
     }
 

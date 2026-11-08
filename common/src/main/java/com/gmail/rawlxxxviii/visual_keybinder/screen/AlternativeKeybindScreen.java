@@ -306,13 +306,15 @@ public class AlternativeKeybindScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (this.keyMappingToChange != null) {
             if (event.key() == 256) {
-                this.keyMappingToChange = null;
+                // Same as the original mod: ESC unbinds the key instead of only
+                // leaving edit mode.
+                this.keyMappingToChange.setKey(InputConstants.UNKNOWN);
             } else {
                 this.keyMappingToChange.setKey(InputConstants.Type.KEYSYM.getOrCreate(event.key()));
-                this.keyMappingToChange = null;
-                options.save();
-                KeyMapping.resetMapping();
             }
+            this.keyMappingToChange = null;
+            options.save();
+            KeyMapping.resetMapping();
             onBindingsChanged();
             return true;
         }
